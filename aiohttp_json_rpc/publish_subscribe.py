@@ -14,27 +14,31 @@ class PublishSubscribeJsonRpc(JsonRpc):
     WEBSOCKET_CLASS = PublishSubscribeJsonWebSocketResponse
     IGNORED_METHODS = ['WEBSOCKET_CLASS', 'filter']
 
-    def subscribe(self, ws, params):
-        if type(params) is not list:
-            params = [params]
+    async def subscribe(self, ws, msg):
+        subscriptions = msg['params']
 
-        for subscription in params:
+        if type(subscriptions) is not list:
+            subscriptions = [subscriptions]
+
+        for subscription in subscriptions:
             if subscription:
                 ws.subscriptions.add(subscription)
 
         return True
 
-    def unsubscribe(self, ws, params):
-        if type(params) is not list:
-            params = [params]
+    async def unsubscribe(self, ws, msg):
+        subscriptions = msg['params']
 
-        for subscription in params:
+        if type(subscriptions) is not list:
+            subscriptions = [subscriptions]
+
+        for subscription in subscriptions:
             if subscription in ws.subscriptions:
                 ws.subscriptions.remove(subscription)
 
         return True
 
-    def list_subscriptions(self, ws, params):
+    async def list_subscriptions(self, ws, msg):
         return list(ws.subscriptions)
 
     @classmethod

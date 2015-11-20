@@ -88,8 +88,8 @@ class JsonRpc(object):
 
             attr = getattr(self, i)
 
-            if callable(attr):
-                self.methods[i] = asyncio.coroutine(getattr(self, i))
+            if asyncio.iscoroutinefunction(attr):
+                self.methods[i] = getattr(self, i)
 
         # handle request
         if request.method == 'GET':
@@ -98,6 +98,7 @@ class JsonRpc(object):
             if request.headers.get('upgrade', '') == 'websocket':
                 ws = self.WEBSOCKET_CLASS()
                 await ws.prepare(request)
+                loop = asyncio.get_event_loop()
 
                 while not ws.closed:
                     msg = await ws.receive()
@@ -143,7 +144,7 @@ class JsonRpc(object):
                         # performing response
                         try:
                             rsp = await self.methods[msg['method']](
-                                self, ws, msg['params'])
+                                self, ws, msg)
 
                             ws.send_response(msg['id'], rsp)
 
@@ -174,5 +175,5 @@ class JsonRpc(object):
         # Huh! nevermind...
         pass
 
-    def list_methods(self, ws, params):
+    async def list_methods(self, ws, params):
         return list(self.methods.keys())
