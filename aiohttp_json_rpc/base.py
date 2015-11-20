@@ -35,7 +35,7 @@ class JsonWebSocketResponse(web.WebSocketResponse):
             message['params'] = params
 
         message = json.dumps(message)
-        super().send_str(message)
+        return self.send_str(message)
 
     def send_response(self, id, result):
         message = {
@@ -45,7 +45,7 @@ class JsonWebSocketResponse(web.WebSocketResponse):
         }
 
         message = json.dumps(message)
-        super().send_str(message)
+        return self.send_str(message)
 
     def send_error(self, id, code, message, data=None):
         message = {
@@ -61,10 +61,10 @@ class JsonWebSocketResponse(web.WebSocketResponse):
             message['error']['data'] = data
 
         message = json.dumps(message)
-        super().send_str(message)
+        return self.send_str(message)
 
     def send_notification(self, method, params):
-        self.send_request(None, method, params)
+        return self.send_request(None, method, params)
 
 
 class JsonRpc(object):
