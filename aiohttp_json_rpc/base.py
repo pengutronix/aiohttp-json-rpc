@@ -14,12 +14,14 @@ class JsonWebSocketResponse(web.WebSocketResponse):
 
     objects = []
 
-    async def prepare(self, request):
+    @asyncio.coroutine
+    def prepare(self, request):
         self.objects.append(self)
 
-        return await super().prepare(request)
+        yield from super().prepare(request)
 
-    async def close(self, code=1000, message=b''):
+    @asyncio.coroutine
+    def close(self, code=1000, message=b''):
         self.objects.remove(self)
 
         return super().close(code=code, message=message)
@@ -74,7 +76,8 @@ class JsonRpc(object):
     def __new__(cls, request):
         return cls._run(cls, request)
 
-    async def _run(self, request):
+    @asyncio.coroutine
+    def _run(self, request):
         # check request
         if not self._request_is_valid(self, request):
             return web.Response(status=403)
@@ -97,11 +100,11 @@ class JsonRpc(object):
             # websocket
             if request.headers.get('upgrade', '') == 'websocket':
                 ws = self.WEBSOCKET_CLASS()
-                await ws.prepare(request)
+                yield from ws.prepare(request)
                 loop = asyncio.get_event_loop()
 
                 while not ws.closed:
-                    msg = await ws.receive()
+                    msg = yield from ws.receive()
 
                     if msg.tp == aiohttp.MsgType.text:
                         # parse json
@@ -143,7 +146,7 @@ class JsonRpc(object):
 
                         # performing response
                         try:
-                            rsp = await self.methods[msg['method']](
+                            rsp = yield from self.methods[msg['method']](
                                 self, ws, msg)
 
                             ws.send_response(msg['id'], rsp)
@@ -175,5 +178,6 @@ class JsonRpc(object):
         # Huh! nevermind...
         pass
 
-    async def list_methods(self, ws, params):
+    @asyncio.coroutine
+    def list_methods(self, ws, params):
         return list(self.methods.keys())

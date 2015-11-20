@@ -1,4 +1,5 @@
 from .base import JsonWebSocketResponse, JsonRpc
+import asyncio
 
 
 class PublishSubscribeJsonWebSocketResponse(JsonWebSocketResponse):
@@ -14,7 +15,8 @@ class PublishSubscribeJsonRpc(JsonRpc):
     WEBSOCKET_CLASS = PublishSubscribeJsonWebSocketResponse
     IGNORED_METHODS = ['WEBSOCKET_CLASS', 'filter']
 
-    async def subscribe(self, ws, msg):
+    @asyncio.coroutine
+    def subscribe(self, ws, msg):
         subscriptions = msg['params']
 
         if type(subscriptions) is not list:
@@ -26,7 +28,8 @@ class PublishSubscribeJsonRpc(JsonRpc):
 
         return True
 
-    async def unsubscribe(self, ws, msg):
+    @asyncio.coroutine
+    def unsubscribe(self, ws, msg):
         subscriptions = msg['params']
 
         if type(subscriptions) is not list:
@@ -38,7 +41,8 @@ class PublishSubscribeJsonRpc(JsonRpc):
 
         return True
 
-    async def list_subscriptions(self, ws, msg):
+    @asyncio.coroutine
+    def list_subscriptions(self, ws, msg):
         return list(ws.subscriptions)
 
     @classmethod
