@@ -4,7 +4,7 @@
 from setuptools import setup
 
 setup(name='aiohttp-json-rpc',
-      version='0.1.1',
+      version='0.2',
       author='Florian Scherf',
       url='https://github.com/pengutronix/aiohttp-json-rpc/tree/doc',
       author_email='f.scherf@pengutronix.de',
