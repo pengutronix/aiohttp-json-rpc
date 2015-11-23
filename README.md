@@ -13,8 +13,13 @@ import datetime
 
 
 class MyRpc(PublishSubscribeJsonRpc):
+    @asyncio.coroutine
     def ping(self, ws, params):
-    	return 'pong'
+        """
+        all rpc-methods have to be coroutines.
+        """
+
+        return 'pong'
 
     def _request_is_valid(self, request):
         return True
@@ -28,21 +33,23 @@ class MyRpc(PublishSubscribeJsonRpc):
         pass
 
 
-async def init(loop):
+@asyncio.coroutine
+def init(loop):
     app = Application(loop=loop)
     app.router.add_route('*', '/api/websocket', MyRpc)
 
-    return await loop.create_server(app.make_handler(), '', 8080)
+    yield from loop.create_server(app.make_handler(), '', 8080)
 
 
-async def clock():
+@asyncio.coroutine
+def clock():
     while True:
         now = str(datetime.datetime.now())
 
         for client in MyRpc.filter('clock'):
             client.send_notification('clock', now)
 
-        await asyncio.sleep(1)
+        yield from asyncio.sleep(1)
 
 
 if __name__ == '__main__':
@@ -54,18 +61,19 @@ if __name__ == '__main__':
 
 **Example JSON RPC Messages**
 ```
->>> {"jsonrpc": "2.0", "method": "list_methods", "id": 1}
-{"result": ["list_methods", "unsubscribe", "subscribe", "list_subscriptions", "ping"], "id": 1, "jsonrpc": "2.0"}
+> {"jsonrpc": "2.0", "method": "list_methods", "id": 1}
+< {"result": ["list_methods", "unsubscribe", "subscribe", "list_subscriptions", "ping"], "id": 1, "jsonrpc": "2.0"}
 
->>> {"jsonrpc": "2.0", "method": "ping", "id": 2}
-{"jsonrpc": "2.0", "method": "ping", "params": "pong" "id": 2}
+> {"jsonrpc": "2.0", "method": "ping", "id": 2}
+< {"jsonrpc": "2.0", "method": "ping", "params": "pong", "id": 2}
 
->>> {"jsonrpc": "2.0", "method": "subscribe", "params": "clock"}
-{"method": "clock", "id": null, "params": "2015-11-17 20:05:46.721194", "jsonrpc": "2.0"}
-{"method": "clock", "id": null, "params": "2015-11-17 20:05:47.722591", "jsonrpc": "2.0"}
-{"method": "clock", "id": null, "params": "2015-11-17 20:05:48.724003", "jsonrpc": "2.0"}
-{"method": "clock", "id": null, "params": "2015-11-17 20:05:49.725479", "jsonrpc": "2.0"}
-{"method": "clock", "id": null, "params": "2015-11-17 20:05:50.726987", "jsonrpc": "2.0"}
+> {"jsonrpc": "2.0", "method": "subscribe", "params": "clock", "id": 3}
+< {"id": 3, "result": true, "jsonrpc": "2.0"}
+< {"method": "clock", "id": null, "params": "2015-11-17 20:05:46.721194", "jsonrpc": "2.0"}
+< {"method": "clock", "id": null, "params": "2015-11-17 20:05:47.722591", "jsonrpc": "2.0"}
+< {"method": "clock", "id": null, "params": "2015-11-17 20:05:48.724003", "jsonrpc": "2.0"}
+< {"method": "clock", "id": null, "params": "2015-11-17 20:05:49.725479", "jsonrpc": "2.0"}
+< {"method": "clock", "id": null, "params": "2015-11-17 20:05:50.726987", "jsonrpc": "2.0"}
 ```
 
 ## RPC-Classes

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import sys
@@ -15,30 +15,72 @@ from aiohttp_json_rpc.django import DjangoAuthJsonRpc,\
     DjangoAuthPublishSubscribeJsonRpc
 
 import datetime
+import time
 
 
-async def init(loop):
+class MyJsonRpc(PublishSubscribeJsonRpc):
+    running_counter = None
+
+    @asyncio.coroutine
+    def start_counter(self, ws, msg):
+        if self.running_counter and not self.running_counter.done():
+            return False
+
+        @asyncio.coroutine
+        def counter(ws, count):
+            for i in range(count):
+                for client in self.filter('counter'):
+                    client.send_notification('counter', i)
+
+                yield from asyncio.sleep(1)
+
+            ws.send_notification('counter', count)
+
+        count = msg['params'] or 10
+        loop = asyncio.get_event_loop()
+        self.running_counter = loop.create_task(counter(ws, count))
+
+        return True
+
+    @asyncio.coroutine
+    def cancel_counter(self, ws, msg):
+        try:
+            self.running_counter.cancel()
+            return True
+
+        except:
+            return False
+
+    @asyncio.coroutine
+    def ping(self, ws, msg):
+        return 'pong'
+
+
+class MyDjangoAuthJsonRpc(DjangoAuthPublishSubscribeJsonRpc, MyJsonRpc):
+    pass
+
+
+@asyncio.coroutine
+def init(loop):
     app = Application(loop=loop)
     wsgi_handler = WSGIHandler(django_app)
 
-    app.router.add_route('*', '/ws/jrpc', JsonRpc)
-    app.router.add_route('*', '/ws/ppjrpc', PublishSubscribeJsonRpc)
-    app.router.add_route('*', '/ws/dajrpc', DjangoAuthJsonRpc)
-    app.router.add_route('*', '/ws/dappjrpc', DjangoAuthPublishSubscribeJsonRpc)
-
+    app.router.add_route('*', '/ws/myjrpc', MyJsonRpc)
+    app.router.add_route('*', '/ws/mydajrpc', MyDjangoAuthJsonRpc)
     app.router.add_route('*', '/{path_info:.*}', wsgi_handler.handle_request)
 
-    return await loop.create_server(app.make_handler(), '', 8080)
+    yield from loop.create_server(app.make_handler(), '', 8080)
 
 
-async def clock():
+@asyncio.coroutine
+def clock():
     while True:
         now = str(datetime.datetime.now())
 
-        for client in DjangoAuthPublishSubscribeJsonRpc.filter('clock'):
+        for client in MyJsonRpc.filter('clock'):
             client.send_notification('clock', now)
 
-        await asyncio.sleep(1)
+        yield from asyncio.sleep(1)
 
 
 if __name__ == '__main__':
