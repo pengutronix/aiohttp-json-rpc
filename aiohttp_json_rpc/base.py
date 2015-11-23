@@ -1,7 +1,28 @@
 import asyncio
 from aiohttp import web
 import aiohttp
+import logging
 import json
+import sys
+import os
+
+
+class RpcError(Exception):
+    def __init__(self, message=''):
+        self.message = message
+
+    def __str__(self):
+        return str(self.message)
+
+
+class RpcInvalidRequestError(RpcError):
+    def __init__(self, message='Invalid request'):
+        self.message = message
+
+
+class RpcInvalidParamsError(RpcError):
+    def __init__(self, message='Invalid params'):
+        self.message = message
 
 
 class JsonWebSocketResponse(web.WebSocketResponse):
@@ -151,15 +172,37 @@ class JsonRpc(object):
 
                             ws.send_response(msg['id'], rsp)
 
-                        except Exception:
-                            ws.send_error(msg['id'], ws.INTERNAL_ERROR,
-                                          'Internal error.')
+                        except RpcInvalidRequestError as e:
+                            ws.send_error(msg['id'], ws.INVALID_REQUEST_ERROR,
+                                          str(e))
+
+                        except RpcInvalidParamsError as e:
+                            ws.send_error(msg['id'], ws.INVALID_PARAMS_ERROR,
+                                          str(e))
+
+                        except Exception as exception:
+                            exc_type, exc_value, exc_traceback = sys.exc_info()
+
+                            while exc_traceback.tb_next:
+                                exc_traceback = exc_traceback.tb_next
+
+                            logging.error('{}.{}: {}: {} "{}:{}"'.format(
+                                self.__name__,
+                                msg['method'],
+                                exc_type.__name__,
+                                exc_value,
+                                os.path.abspath(
+                                    exc_traceback.tb_frame.f_code.co_filename),
+                                exc_traceback.tb_lineno)
+                            )
+
+                            self._on_error(self, ws, msg, exception)
 
                     elif msg.tp == aiohttp.MsgType.close:
-                        self._on_ws_close(self, ws)
+                        self._on_close(self, ws)
 
                     elif msg.tp == aiohttp.MsgType.error:
-                        self._on_ws_error(self, ws)
+                        self._on_error(self, ws)
 
                 return ws
 
@@ -170,12 +213,11 @@ class JsonRpc(object):
     def _request_is_valid(self, request):
         return True
 
-    def _on_ws_close(self, ws):
-        # Bye, it was a pleasure to serve you.
-        pass
+    def _on_error(self, ws, msg=None, exception=None):
+        ws.send_error(msg['id'], ws.INTERNAL_ERROR, 'Internal error.')
 
-    def _on_ws_error(self, ws):
-        # Huh! nevermind...
+    def _on_close(self, ws):
+        # Bye, it was a pleasure to serve you.
         pass
 
     @asyncio.coroutine
