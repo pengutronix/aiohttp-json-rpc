@@ -1,5 +1,4 @@
 import asyncio
-from aiohttp import web
 import aiohttp
 import logging
 import json
@@ -25,7 +24,7 @@ class RpcInvalidParamsError(RpcError):
         self.message = message
 
 
-class JsonWebSocketResponse(web.WebSocketResponse):
+class JsonWebSocketResponse(aiohttp.web.WebSocketResponse):
     JSONRPC = '2.0'
     PARSE_ERROR = -32700
     INVALID_REQUEST_ERROR = -32600
@@ -101,7 +100,7 @@ class JsonRpc(object):
     def _run(self, request):
         # check request
         if not self._request_is_valid(self, request):
-            return web.Response(status=403)
+            return aiohttp.web.Response(status=403)
 
         # find methods
         self.methods = {}
@@ -122,7 +121,6 @@ class JsonRpc(object):
             if request.headers.get('upgrade', '') == 'websocket':
                 ws = self.WEBSOCKET_CLASS()
                 yield from ws.prepare(request)
-                loop = asyncio.get_event_loop()
 
                 while not ws.closed:
                     msg = yield from ws.receive()
@@ -208,7 +206,7 @@ class JsonRpc(object):
 
             # GET request
             else:
-                return web.Response()
+                return aiohttp.web.Response()
 
     def _request_is_valid(self, request):
         return True
