@@ -38,7 +38,7 @@ class JsonWebSocketResponse(aiohttp.web.WebSocketResponse):
     def prepare(self, request):
         self.objects.append(self)
 
-        yield from super().prepare(request)
+        return super().prepare(request)
 
     @asyncio.coroutine
     def close(self, code=1000, message=b''):
