@@ -22,15 +22,24 @@ class MyRpc(PublishSubscribeJsonRpc):
         return 'pong'
 
     def _request_is_valid(self, request):
+        # Yep! seems legit.
         return True
 
-    def _on_ws_close(self, ws):
+    def _msg_is_valid(self, msg):
+        # Yep! seems legit.
+        return True
+
+    def _on_open(self, ws):
+        # Hi, what brought you along today?
+        pass
+
+    def _on_close(self, ws):
         # Bye, it was a pleasure to serve you.
         pass
 
-    def _on_ws_error(self, ws):
+    def _on_error(self, ws, msg=None, exception=None):
         # Huh! nevermind...
-        pass
+        super()._on_error(ws, msg, exception)
 
 
 @asyncio.coroutine

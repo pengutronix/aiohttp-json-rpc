@@ -122,10 +122,19 @@ class JsonRpc(object):
                 ws = self.WEBSOCKET_CLASS()
                 yield from ws.prepare(request)
 
+                self._on_open(self, ws)
+
                 while not ws.closed:
+
+                    # check and receive message
                     msg = yield from ws.receive()
 
+                    if not self._msg_is_valid(msg):
+                        continue
+
+                    # handle message
                     if msg.tp == aiohttp.MsgType.text:
+
                         # parse json
                         try:
                             msg = json.loads(msg.data)
@@ -209,7 +218,16 @@ class JsonRpc(object):
                 return aiohttp.web.Response()
 
     def _request_is_valid(self, request):
+        # Yep! seems legit.
         return True
+
+    def _msg_is_valid(self, msg):
+        # Yep! seems legit.
+        return True
+
+    def _on_open(self, ws):
+        # Hi, what brought you along today?
+        pass
 
     def _on_error(self, ws, msg=None, exception=None):
         ws.send_error(msg['id'], ws.INTERNAL_ERROR, 'Internal error.')
