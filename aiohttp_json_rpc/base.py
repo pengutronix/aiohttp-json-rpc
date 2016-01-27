@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+from aiohttp.web_ws import WebSocketResponse
 import logging
 import json
 import sys
@@ -24,7 +25,7 @@ class RpcInvalidParamsError(RpcError):
         self.message = message
 
 
-class JsonWebSocketResponse(aiohttp.web.WebSocketResponse):
+class JsonWebSocketResponse(WebSocketResponse):
     JSONRPC = '2.0'
     PARSE_ERROR = -32700
     INVALID_REQUEST_ERROR = -32600
