@@ -130,7 +130,7 @@ class JsonRpc(object):
                     # check and receive message
                     msg = yield from ws.receive()
 
-                    if not self._msg_is_valid(msg):
+                    if not self._msg_is_valid(self, msg):
                         continue
 
                     # handle message
