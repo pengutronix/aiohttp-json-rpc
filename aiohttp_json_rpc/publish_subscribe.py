@@ -13,7 +13,10 @@ class PublishSubscribeJsonWebSocketResponse(JsonWebSocketResponse):
 
 class PublishSubscribeJsonRpc(JsonRpc):
     WEBSOCKET_CLASS = PublishSubscribeJsonWebSocketResponse
-    IGNORED_METHODS = ['WEBSOCKET_CLASS', 'filter']
+    IGNORED_METHODS = [
+        'filter',
+        'notify',
+    ]
 
     @asyncio.coroutine
     def subscribe(self, ws, msg):
@@ -45,13 +48,19 @@ class PublishSubscribeJsonRpc(JsonRpc):
     def list_subscriptions(self, ws, msg):
         return list(ws.subscriptions)
 
-    @classmethod
-    def filter(cls, subscriptions):
+    def filter(self, subscriptions):
         if type(subscriptions) is not list:
             subscriptions = [subscriptions]
 
         subscriptions = set(subscriptions)
 
-        for i in cls.WEBSOCKET_CLASS.objects:
-            if len(subscriptions & i.subscriptions) > 0:
-                yield i
+        for client in self.clients:
+            if len(subscriptions & client.subscriptions) > 0:
+                yield client
+
+    def notify(self, subscription, msg):
+        if type(subscription) is not str:
+            raise ValueError
+
+        for client in self.filter(subscription):
+            client.send_notification(subscription, msg)

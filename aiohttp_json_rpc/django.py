@@ -5,7 +5,7 @@ from .publish_subscribe import PublishSubscribeJsonRpc
 
 
 class DjangoAuthJsonRpc(JsonRpc):
-    def _get_django_user(session_key):
+    def _get_django_user(self, session_key):
         if session_key:
             try:
                 session = Session.objects.get(session_key=session_key)

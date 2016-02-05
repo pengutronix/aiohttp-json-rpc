@@ -33,20 +33,6 @@ class JsonWebSocketResponse(WebSocketResponse):
     INVALID_PARAMS_ERROR = -32602
     INTERNAL_ERROR = -32603
 
-    objects = []
-
-    @asyncio.coroutine
-    def prepare(self, request):
-        self.objects.append(self)
-
-        return super().prepare(request)
-
-    @asyncio.coroutine
-    def close(self, code=1000, message=b''):
-        self.objects.remove(self)
-
-        return super().close(code=code, message=message)
-
     def send_request(self, id, method, params=None):
         message = {
             'jsonrpc': self.JSONRPC,
@@ -92,20 +78,15 @@ class JsonWebSocketResponse(WebSocketResponse):
 
 class JsonRpc(object):
     WEBSOCKET_CLASS = JsonWebSocketResponse
-    IGNORED_METHODS = ['WEBSOCKET_CLASS']
+    IGNORED_METHODS = [
+        'handle_websocket_request',
+    ]
 
-    def __new__(cls, request):
-        return cls._run(cls, request)
-
-    @asyncio.coroutine
-    def _run(self, request):
-        # check request
-        if not self._request_is_valid(self, request):
-            return aiohttp.web.Response(status=403)
-
-        # find methods
+    def __init__(self, *args, **kwargs):
         self.methods = {}
+        self.clients = []
 
+        # find rpc-methods
         for i in dir(self):
             if i.startswith('_') or i in self.IGNORED_METHODS:
                 continue
@@ -115,108 +96,124 @@ class JsonRpc(object):
             if asyncio.iscoroutinefunction(attr):
                 self.methods[i] = getattr(self, i)
 
+    @asyncio.coroutine
+    def __call__(self, request):
+        # check request
+        if not self._request_is_valid(request):
+            return aiohttp.web.Response(status=403)
+
         # handle request
         if request.method == 'GET':
 
-            # websocket
+            # handle Websocket
             if request.headers.get('upgrade', '') == 'websocket':
-                ws = self.WEBSOCKET_CLASS()
-                yield from ws.prepare(request)
+                return (yield from self.handle_websocket_request(request))
 
-                self._on_open(self, ws)
-
-                while not ws.closed:
-
-                    # check and receive message
-                    msg = yield from ws.receive()
-
-                    if not self._msg_is_valid(self, msg):
-                        continue
-
-                    # handle message
-                    if msg.tp == aiohttp.MsgType.text:
-
-                        # parse json
-                        try:
-                            msg = json.loads(msg.data)
-
-                            if 'id' not in msg:
-                                msg['id'] = None
-
-                            if 'params' not in msg:
-                                msg['params'] = []
-
-                        except ValueError:
-                            ws.send_error(None, ws.PARSE_ERROR,
-                                          'Invalid JSON was received.')
-                            continue
-
-                        # check args
-                        if not {'jsonrpc', 'method'} <= set(msg):
-                            ws.send_error(
-                                msg['id'], ws.INVALID_REQUEST_ERROR,
-                                'Invalid request.')
-
-                            continue
-
-                        if not type(msg['method']) == str:
-                            ws.send_error(msg['id'],
-                                          ws.INVALID_REQUEST_ERROR,
-                                          'Method has to be a string.')
-
-                            continue
-
-                        if msg['method'] not in self.methods:
-                            ws.send_error(msg['id'],
-                                          ws.METHOD_NOT_FOUND_ERROR,
-                                          'Method not found.')
-
-                            continue
-
-                        # performing response
-                        try:
-                            rsp = yield from self.methods[msg['method']](
-                                self, ws, msg)
-
-                            ws.send_response(msg['id'], rsp)
-
-                        except RpcInvalidRequestError as e:
-                            ws.send_error(msg['id'], ws.INVALID_REQUEST_ERROR,
-                                          str(e))
-
-                        except RpcInvalidParamsError as e:
-                            ws.send_error(msg['id'], ws.INVALID_PARAMS_ERROR,
-                                          str(e))
-
-                        except Exception as exception:
-                            exc_type, exc_value, exc_traceback = sys.exc_info()
-
-                            while exc_traceback.tb_next:
-                                exc_traceback = exc_traceback.tb_next
-
-                            logging.error('{}.{}: {}: {} "{}:{}"'.format(
-                                self.__name__,
-                                msg['method'],
-                                exc_type.__name__,
-                                exc_value,
-                                os.path.abspath(
-                                    exc_traceback.tb_frame.f_code.co_filename),
-                                exc_traceback.tb_lineno)
-                            )
-
-                            self._on_error(self, ws, msg, exception)
-
-                    elif msg.tp == aiohttp.MsgType.close:
-                        self._on_close(self, ws)
-
-                    elif msg.tp == aiohttp.MsgType.error:
-                        self._on_error(self, ws)
-
-                return ws
-
-            # GET request
+            # handle GET
             else:
                 return aiohttp.web.Response()
+
+        # handle POST
+        elif request.method == 'POST':
+            return aiohttp.web.Response()
+
+    @asyncio.coroutine
+    def handle_websocket_request(self, request):
+
+        # prepare and register websocket
+        ws = self.WEBSOCKET_CLASS()
+        yield from ws.prepare(request)
+        self.clients.append(ws)
+        self._on_open(ws)
+
+        while not ws.closed:
+
+            # check and receive message
+            msg = yield from ws.receive()
+
+            if not self._msg_is_valid(msg):
+                continue
+
+            # handle message
+            if msg.tp == aiohttp.MsgType.text:
+
+                # parse json
+                try:
+                    msg = json.loads(msg.data)
+
+                    if 'id' not in msg:
+                        msg['id'] = None
+
+                    if 'params' not in msg:
+                        msg['params'] = []
+
+                except ValueError:
+                    ws.send_error(None, ws.PARSE_ERROR,
+                                  'Invalid JSON was received.')
+                    continue
+
+                # check args
+                if not {'jsonrpc', 'method'} <= set(msg):
+                    ws.send_error(
+                        msg['id'], ws.INVALID_REQUEST_ERROR,
+                        'Invalid request.')
+
+                    continue
+
+                if not type(msg['method']) == str:
+                    ws.send_error(msg['id'],
+                                  ws.INVALID_REQUEST_ERROR,
+                                  'Method has to be a string.')
+
+                    continue
+
+                if msg['method'] not in self.methods:
+                    ws.send_error(msg['id'],
+                                  ws.METHOD_NOT_FOUND_ERROR,
+                                  'Method not found.')
+
+                    continue
+
+                # performing response
+                try:
+                    rsp = yield from self.methods[msg['method']](ws, msg)
+
+                    ws.send_response(msg['id'], rsp)
+
+                except RpcInvalidRequestError as e:
+                    ws.send_error(msg['id'], ws.INVALID_REQUEST_ERROR,
+                                  str(e))
+
+                except RpcInvalidParamsError as e:
+                    ws.send_error(msg['id'], ws.INVALID_PARAMS_ERROR,
+                                  str(e))
+
+                except Exception as exception:
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+
+                    while exc_traceback.tb_next:
+                        exc_traceback = exc_traceback.tb_next
+
+                    logging.error('{}.{}: {}: {} "{}:{}"'.format(
+                        self.__class__.__name__,
+                        msg['method'],
+                        exc_type.__name__,
+                        exc_value,
+                        os.path.abspath(
+                            exc_traceback.tb_frame.f_code.co_filename),
+                        exc_traceback.tb_lineno)
+                    )
+
+                    self._on_error(ws, msg, exception)
+
+            elif msg.tp == aiohttp.MsgType.close:
+                self._on_close(ws)
+
+            elif msg.tp == aiohttp.MsgType.error:
+                self._on_error(ws)
+
+        self.clients.remove(ws)
+        return ws
 
     def _request_is_valid(self, request):
         # Yep! seems legit.
