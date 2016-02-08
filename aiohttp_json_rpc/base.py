@@ -1,10 +1,12 @@
 import asyncio
 import aiohttp
 from aiohttp.web_ws import WebSocketResponse
+import traceback
 import logging
 import json
 import sys
 import os
+import io
 
 
 class RpcError(Exception):
@@ -85,6 +87,17 @@ class JsonRpc(object):
     def __init__(self, *args, **kwargs):
         self.methods = {}
         self.clients = []
+
+        # setup logging
+        formatter = logging.Formatter(
+            fmt='%(levelname)s:{}: %(message)s'.format(
+                self.__class__.__name__)
+        )
+
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger.addHandler(handler)
 
         # find rpc-methods
         for i in dir(self):
@@ -189,20 +202,12 @@ class JsonRpc(object):
                                   str(e))
 
                 except Exception as exception:
-                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    buffer = io.StringIO()
+                    traceback.print_exc(file=buffer)
+                    buffer.seek(0)
 
-                    while exc_traceback.tb_next:
-                        exc_traceback = exc_traceback.tb_next
-
-                    logging.error('{}.{}: {}: {} "{}:{}"'.format(
-                        self.__class__.__name__,
-                        msg['method'],
-                        exc_type.__name__,
-                        exc_value,
-                        os.path.abspath(
-                            exc_traceback.tb_frame.f_code.co_filename),
-                        exc_traceback.tb_lineno)
-                    )
+                    for line in buffer.readlines():
+                        self.logger.error(line[:-1])
 
                     self._on_error(ws, msg, exception)
 
