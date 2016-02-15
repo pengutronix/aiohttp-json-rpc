@@ -27,7 +27,7 @@ class DjangoAuthJsonRpc(JsonRpc):
         if sessionid:
             user = self._get_django_user(sessionid)
 
-            if user.is_active and user.is_authenticated():
+            if user and user.is_active and user.is_authenticated():
                 return True
 
         return False
