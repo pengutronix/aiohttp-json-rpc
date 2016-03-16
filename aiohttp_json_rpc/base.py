@@ -88,7 +88,6 @@ class JsonWebSocketResponse(WebSocketResponse):
 
 
 class JsonRpc(object):
-    WEBSOCKET_CLASS = JsonWebSocketResponse
     IGNORED_METHODS = [
         'handle_websocket_request',
     ]
@@ -229,7 +228,7 @@ class JsonRpc(object):
     @asyncio.coroutine
     def handle_websocket_request(self, request, methods):
         # prepare and register websocket
-        ws = self.WEBSOCKET_CLASS()
+        ws = JsonWebSocketResponse()
         yield from ws.prepare(request)
         self.clients.append(ws)
         self._on_open(ws)

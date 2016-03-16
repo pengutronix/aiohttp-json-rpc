@@ -1,25 +1,13 @@
-from .base import JsonWebSocketResponse, JsonRpc
+from .base import JsonRpc
 import asyncio
 
 
-class PublishSubscribeJsonWebSocketResponse(JsonWebSocketResponse):
-    def __init__(self, *, timeout=10.0, autoclose=True, autoping=True,
-                 protocols=()):
-        super().__init__(timeout=timeout, autoclose=autoclose,
-                         autoping=autoping, protocols=protocols)
-
-        self.subscriptions = set()
-
-
 class PublishSubscribeJsonRpc(JsonRpc):
-    WEBSOCKET_CLASS = PublishSubscribeJsonWebSocketResponse
-    IGNORED_METHODS = [
-        'filter',
-        'notify',
-    ]
-
     @asyncio.coroutine
     def subscribe(self, ws, msg):
+        if not hasattr(ws, 'subscriptions'):
+            ws.subscriptions = set()
+
         subscriptions = msg['params']
 
         if type(subscriptions) is not list:
@@ -33,6 +21,11 @@ class PublishSubscribeJsonRpc(JsonRpc):
 
     @asyncio.coroutine
     def unsubscribe(self, ws, msg):
+        if not hasattr(ws, 'subscriptions'):
+            ws.subscriptions = set()
+
+            return True
+
         subscriptions = msg['params']
 
         if type(subscriptions) is not list:
@@ -46,7 +39,7 @@ class PublishSubscribeJsonRpc(JsonRpc):
 
     @asyncio.coroutine
     def list_subscriptions(self, ws, msg):
-        return list(ws.subscriptions)
+        return list(getattr(ws, 'subscriptions', set()))
 
     def filter(self, subscriptions):
         if type(subscriptions) is not list:
