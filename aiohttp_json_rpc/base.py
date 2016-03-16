@@ -1,12 +1,21 @@
 import asyncio
 import aiohttp
 from aiohttp.web_ws import WebSocketResponse
+import importlib
 import traceback
 import logging
 import json
 import sys
 import os
 import io
+
+try:
+    from .django import utils as django_utils
+
+    DJANGO = True
+
+except:
+    DJANGO = False
 
 
 class RpcError(Exception):
@@ -100,14 +109,98 @@ class JsonRpc(object):
         self.logger.addHandler(handler)
 
         # find rpc-methods
-        for i in dir(self):
-            if i.startswith('_') or i in self.IGNORED_METHODS:
+        self._add_methods_from_object(self, ignore=self.IGNORED_METHODS)
+
+    def _add_method(self, method, prefix=''):
+        if not asyncio.iscoroutinefunction(method):
+            return
+
+        name = method.__name__
+
+        if prefix:
+            name = '{}__{}'.format(prefix, name)
+
+        self.methods[name] = method
+
+    def _add_methods_from_object(self, obj, prefix='', ignore=[]):
+        for attr_name in dir(obj):
+            if attr_name.startswith('_') or attr_name in ignore:
                 continue
 
-            attr = getattr(self, i)
+            self._add_method(getattr(obj, attr_name), prefix=prefix)
 
-            if asyncio.iscoroutinefunction(attr):
-                self.methods[i] = getattr(self, i)
+    def _add_methods_by_name(self, name, prefix=''):
+        try:
+            module = importlib.import_module(name)
+            self._add_methods_from_object(module, prefix=prefix)
+
+        except ImportError:
+            name = import_str.split('.')
+            module = importlib.import_module('.'.join(name[:-1]))
+
+            self._add_method(getattr(module, name[-1]), prefix=prefix)
+
+    def add_methods(self, *args, prefix=''):
+        for arg in args:
+            if not (type(arg) == tuple and len(arg) >= 2):
+                raise ValueError('invalid format')
+
+            if not type(arg[0]) == str:
+                raise ValueError('prefix has to be str')
+
+            prefix = prefix or arg[0]
+            method = arg[1]
+
+            if asyncio.iscoroutinefunction(method):
+                self._add_method(method, prefix=prefix)
+
+            elif type(method) == str:
+                self._add_methods_by_name(method, prefix=prefix)
+
+            else:
+                self._add_methods_from_object(method, prefix=prefix)
+
+    def _get_methods(self, request):
+        methods = {}
+        user = None
+
+        def run_tests(tests, user):
+            for test in tests:
+                if not test(user):
+                    return False
+
+            return True
+
+        for name, method in self.methods.items():
+            if not user and set(dir(method)) & set(['login_required',
+                                                    'permissions_required',
+                                                    'tests']):
+                if not DJANGO:
+                    raise ImportError('Django is not installed')
+
+                user = django_utils.get_user(request)
+                user_groups = set([i.name for i in user.groups.all()])
+
+            # login check
+            if hasattr(method, 'login_required') and (
+               not user.is_active or not user.is_authenticated()):
+                continue
+
+            # permission check
+            if hasattr(method, 'permissions_required') and\
+               not user.is_superuser and\
+               not user.has_perms(method.permissions_required):
+                continue
+
+            # user tests
+            if hasattr(method, 'tests') and\
+               not user.is_superuser and\
+               not run_tests(method.tests, user):
+                continue
+
+            methods[name] = method
+
+        return methods
 
     @asyncio.coroutine
     def __call__(self, request):
@@ -120,7 +213,10 @@ class JsonRpc(object):
 
             # handle Websocket
             if request.headers.get('upgrade', '') == 'websocket':
-                return (yield from self.handle_websocket_request(request))
+                methods = self._get_methods(request)
+
+                return (yield from self.handle_websocket_request(request,
+                                                                 methods))
 
             # handle GET
             else:
@@ -131,8 +227,7 @@ class JsonRpc(object):
             return aiohttp.web.Response()
 
     @asyncio.coroutine
-    def handle_websocket_request(self, request):
-
+    def handle_websocket_request(self, request, methods):
         # prepare and register websocket
         ws = self.WEBSOCKET_CLASS()
         yield from ws.prepare(request)
@@ -140,7 +235,6 @@ class JsonRpc(object):
         self._on_open(ws)
 
         while not ws.closed:
-
             # check and receive message
             msg = yield from ws.receive()
 
@@ -180,7 +274,7 @@ class JsonRpc(object):
 
                     continue
 
-                if msg['method'] not in self.methods:
+                if msg['method'] not in methods:
                     ws.send_error(msg['id'],
                                   ws.METHOD_NOT_FOUND_ERROR,
                                   'Method not found.')
@@ -189,7 +283,11 @@ class JsonRpc(object):
 
                 # performing response
                 try:
-                    rsp = yield from self.methods[msg['method']](ws, msg)
+                    if msg['method'] == 'get_methods':
+                        rsp = yield from self.get_methods(methods)
+
+                    else:
+                        rsp = yield from methods[msg['method']](ws, msg)
 
                     ws.send_response(msg['id'], rsp)
 
@@ -240,5 +338,5 @@ class JsonRpc(object):
         pass
 
     @asyncio.coroutine
-    def list_methods(self, ws, params):
-        return list(self.methods.keys())
+    def get_methods(self, methods):
+        return list(methods.keys())
