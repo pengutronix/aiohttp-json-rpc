@@ -219,11 +219,11 @@ class JsonRpc(object):
 
             # handle GET
             else:
-                return aiohttp.web.Response()
+                return aiohttp.web.Response(status=405)
 
         # handle POST
         elif request.method == 'POST':
-            return aiohttp.web.Response()
+            return aiohttp.web.Response(status=405)
 
     @asyncio.coroutine
     def handle_websocket_request(self, request, methods):
