@@ -5,55 +5,58 @@ import asyncio
 class PublishSubscribeJsonRpc(JsonRpc):
     @asyncio.coroutine
     def subscribe(self, ws, msg):
-        if not hasattr(ws, 'subscriptions'):
-            ws.subscriptions = set()
+        if not hasattr(ws, 'topics'):
+            ws.topics = set()
 
-        subscriptions = msg['params']
+        topics = msg['params']
 
-        if type(subscriptions) is not list:
-            subscriptions = [subscriptions]
+        if type(topics) is not list:
+            topics = [topics]
 
-        for subscription in subscriptions:
-            if subscription:
-                ws.subscriptions.add(subscription)
+        for topic in topics:
+            if topic:
+                ws.topics.add(topic)
 
         return True
 
     @asyncio.coroutine
     def unsubscribe(self, ws, msg):
-        if not hasattr(ws, 'subscriptions'):
-            ws.subscriptions = set()
+        if not hasattr(ws, 'topics'):
+            ws.topics = set()
 
             return True
 
-        subscriptions = msg['params']
+        topics = msg['params']
 
-        if type(subscriptions) is not list:
-            subscriptions = [subscriptions]
+        if type(topics) is not list:
+            topics = [topics]
 
-        for subscription in subscriptions:
-            if subscription in ws.subscriptions:
-                ws.subscriptions.remove(subscription)
+        for topic in topics:
+            if topic in ws.topics:
+                ws.topics.remove(topic)
 
         return True
 
     @asyncio.coroutine
-    def list_subscriptions(self, ws, msg):
-        return list(getattr(ws, 'subscriptions', set()))
+    def get_topics(self, ws, msg):
+        return list(getattr(ws, 'topics', set()))
 
-    def filter(self, subscriptions):
-        if type(subscriptions) is not list:
-            subscriptions = [subscriptions]
+    def filter(self, topics):
+        if type(topics) is not list:
+            topics = [topics]
 
-        subscriptions = set(subscriptions)
+        topics = set(topics)
 
         for client in self.clients:
-            if len(subscriptions & client.subscriptions) > 0:
+            if not hasattr(client, 'topics'):
+                continue
+
+            if len(topics & client.topics) > 0:
                 yield client
 
-    def notify(self, subscription, msg):
-        if type(subscription) is not str:
+    def notify(self, topic, data):
+        if type(topic) is not str:
             raise ValueError
 
-        for client in self.filter(subscription):
-            client.send_notification(subscription, msg)
+        for client in self.filter(topic):
+            client.send_notification(topic, data)
