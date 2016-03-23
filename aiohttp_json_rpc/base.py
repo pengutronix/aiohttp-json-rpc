@@ -290,10 +290,6 @@ class JsonRpc(object):
 
                     ws.send_response(msg['id'], rsp)
 
-                except RpcInvalidRequestError as e:
-                    ws.send_error(msg['id'], ws.INVALID_REQUEST_ERROR,
-                                  str(e))
-
                 except RpcInvalidParamsError as e:
                     ws.send_error(msg['id'], ws.INVALID_PARAMS_ERROR,
                                   str(e))
@@ -307,12 +303,14 @@ class JsonRpc(object):
                         self.logger.error(line[:-1])
 
                     self._on_error(ws, msg, exception)
+                    ws.send_error(msg['id'], ws.INTERNAL_ERROR,
+                                  'Internal error.')
 
             elif msg.tp == aiohttp.MsgType.close:
                 self._on_close(ws)
 
             elif msg.tp == aiohttp.MsgType.error:
-                self._on_error(ws)
+                self._on_error(ws, msg)
 
         self.clients.remove(ws)
         return ws
@@ -330,7 +328,8 @@ class JsonRpc(object):
         pass
 
     def _on_error(self, ws, msg=None, exception=None):
-        ws.send_error(msg['id'], ws.INTERNAL_ERROR, 'Internal error.')
+        # Whoops... Things happened.
+        pass
 
     def _on_close(self, ws):
         # Bye, it was a pleasure to serve you.
