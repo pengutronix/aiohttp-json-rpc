@@ -219,7 +219,7 @@ Methods
   Args have to be tuple containing a prefix as string (may be empty) and a module,
   object, coroutine or import string.
 
-  If second arg is module or object all coroutines in it get added.
+  If second arg is module or object all coroutines in it are getting added.
 
 
 RPC Methods
