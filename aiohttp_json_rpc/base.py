@@ -83,7 +83,7 @@ class JsonWebSocketResponse(WebSocketResponse):
         message = json.dumps(message)
         return self.send_str(message)
 
-    def send_notification(self, method, params):
+    def send_notification(self, method, params=None):
         return self.send_request(None, method, params)
 
 

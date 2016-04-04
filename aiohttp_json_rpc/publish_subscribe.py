@@ -50,7 +50,7 @@ class PublishSubscribeJsonRpc(JsonRpc):
             if len(topics & client.topics) > 0:
                 yield client
 
-    def notify(self, topic, data):
+    def notify(self, topic, data=None):
         if type(topic) is not str:
             raise ValueError
 
