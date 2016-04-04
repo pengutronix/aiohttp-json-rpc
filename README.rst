@@ -29,9 +29,29 @@ Any coroutine method of the RPC class is exposed to clients, except if its name 
 
 RPC methods can be defined in the RPC itself or added by using ``rpc.add_method()``.
 
+All RPC methods are getting passed a context containing:
+
+``params``
+  The RPC message params.
+
+``user``
+  The Django user associated with the request.
+  May be ``None`` if Django is not installed or used.
+
+``rpc``
+  RPC object that called the RPC method.
+
+``ws``
+  JsonWebSocketResponse object that received the RPC call.
+
+``msg``
+  The original RPC message.
+
 
 Server
 ~~~~~~
+
+The following code implements a simple RPC server that serves the method ``ping`` on ``localhost:8080``.
 
 .. code-block:: python
 
@@ -42,7 +62,7 @@ Server
 
   class MyRpc(JsonRpc):
       @asyncio.coroutine
-      def ping(self, ws, params):
+      def ping(self, **context):
           return 'pong'
 
 
@@ -63,6 +83,9 @@ Server
 
 Client
 ~~~~~~
+
+The following code implements a simple RPC client that connects to the server above
+and prints all incoming messages to the console.
 
 .. code-block:: html
 
@@ -88,12 +111,12 @@ Client
     }
   </script>
 
+These are example responses the server would give if you call ``ws_call_method``.
+
 .. code-block:: html
 
   --> ws_call_method("get_methods")
   <-- {"jsonrpc": "2.0", "result": ["get_methods", "ping"], "id": 1}
-
-.. code-block:: html
 
   --> ws_call_method("ping")
   <-- {"jsonrpc": "2.0", "method": "ping", "params": "pong", "id": 2}
@@ -136,7 +159,9 @@ If your coroutine got called with wrong params you can raise an ``aiohttp_json_r
 
   from aiohttp_json_rpc import RpcInvalidParamsError
 
-  async def add(ws, params):
+
+  @asyncio.coroutine
+  def add(params, **context):
       try:
           a = params.get('a')
           b = params.get('b')
@@ -156,7 +181,8 @@ The RPC will send an RPC ServerError and proceed as if nothing happened.
 
 .. code-block:: python
 
-  async def divide(ws, params):
+  @asyncio.coroutine
+  def divide(**context):
       return 1 / 0  # will raise a ZeroDivisionError
 
 .. code-block::
@@ -202,7 +228,8 @@ For details see the corresponding Django documentation.
   @login_required
   @permission_required('ping')
   @user_passes_test(lambda user: user.is_superuser)
-  async def ping(ws, params):
+  @asyncio.coroutine
+  def ping(**context):
       return 'pong'
 
 

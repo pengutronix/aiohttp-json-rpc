@@ -9,7 +9,7 @@ import asyncio
 
 class MyRpc(JsonRpc):
     @asyncio.coroutine
-    def ping(self, ws, params):
+    def ping(self, **context):
         return 'pong'
 
 

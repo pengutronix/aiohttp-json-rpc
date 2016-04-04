@@ -161,7 +161,7 @@ class JsonRpc(object):
 
     def _get_methods(self, request):
         methods = {}
-        user = None
+        user = django_utils.get_user(request) if DJANGO else None
 
         def run_tests(tests, user):
             for test in tests:
@@ -174,11 +174,7 @@ class JsonRpc(object):
             if not user and set(dir(method)) & set(['login_required',
                                                     'permissions_required',
                                                     'tests']):
-                if not DJANGO:
-                    raise ImportError('Django is not installed')
-
-                user = django_utils.get_user(request)
-                user_groups = set([i.name for i in user.groups.all()])
+                raise ImportError('Django is not installed')
 
             # login check
             if hasattr(method, 'login_required') and (
@@ -199,7 +195,7 @@ class JsonRpc(object):
 
             methods[name] = method
 
-        return methods
+        return user, methods
 
     @asyncio.coroutine
     def __call__(self, request):
@@ -212,10 +208,10 @@ class JsonRpc(object):
 
             # handle Websocket
             if request.headers.get('upgrade', '') == 'websocket':
-                methods = self._get_methods(request)
+                user, methods = self._get_methods(request)
 
-                return (yield from self.handle_websocket_request(request,
-                                                                 methods))
+                return (yield from self.handle_websocket_request(
+                    request, user, methods))
 
             # handle GET
             else:
@@ -226,7 +222,7 @@ class JsonRpc(object):
             return aiohttp.web.Response(status=405)
 
     @asyncio.coroutine
-    def handle_websocket_request(self, request, methods):
+    def handle_websocket_request(self, request, user, methods):
         # prepare and register websocket
         ws = JsonWebSocketResponse()
         yield from ws.prepare(request)
@@ -280,13 +276,21 @@ class JsonRpc(object):
 
                     continue
 
-                # performing response
+                # call method and send response
                 try:
                     if msg['method'] == 'get_methods':
                         rsp = yield from self.get_methods(methods)
 
                     else:
-                        rsp = yield from methods[msg['method']](ws, msg)
+                        context = {
+                            'msg': msg,
+                            'params': msg.get('params', None),
+                            'user': user,
+                            'rpc': self,
+                            'ws': ws,
+                        }
+
+                        rsp = yield from methods[msg['method']](**context)
 
                     ws.send_response(msg['id'], rsp)
 

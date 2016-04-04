@@ -4,42 +4,38 @@ import asyncio
 
 class PublishSubscribeJsonRpc(JsonRpc):
     @asyncio.coroutine
-    def subscribe(self, ws, msg):
-        if not hasattr(ws, 'topics'):
-            ws.topics = set()
+    def subscribe(self, params, **kwargs):
+        if not hasattr(kwargs['ws'], 'topics'):
+            kwargs['ws'].topics = set()
 
-        topics = msg['params']
+        if type(params) is not list:
+            params = [params]
 
-        if type(topics) is not list:
-            topics = [topics]
-
-        for topic in topics:
+        for topic in params:
             if topic:
-                ws.topics.add(topic)
+                kwargs['ws'].topics.add(topic)
 
         return True
 
     @asyncio.coroutine
-    def unsubscribe(self, ws, msg):
-        if not hasattr(ws, 'topics'):
-            ws.topics = set()
+    def unsubscribe(self, params, **kwargs):
+        if not hasattr(kwargs['ws'], 'topics'):
+            kwargs['ws'].topics = set()
 
             return True
 
-        topics = msg['params']
+        if type(params) is not list:
+            params = [params]
 
-        if type(topics) is not list:
-            topics = [topics]
-
-        for topic in topics:
-            if topic in ws.topics:
-                ws.topics.remove(topic)
+        for topic in params:
+            if topic in kwargs['ws'].topics:
+                kwargs['ws'].topics.remove(topic)
 
         return True
 
     @asyncio.coroutine
-    def get_topics(self, ws, msg):
-        return list(getattr(ws, 'topics', set()))
+    def get_topics(self, params, **kwargs):
+        return list(getattr(kwargs['ws'], 'topics', set()))
 
     def filter(self, topics):
         if type(topics) is not list:
