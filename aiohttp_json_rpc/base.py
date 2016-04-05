@@ -134,7 +134,7 @@ class JsonRpc(object):
             self._add_methods_from_object(module, prefix=prefix)
 
         except ImportError:
-            name = import_str.split('.')
+            name = name.split('.')
             module = importlib.import_module('.'.join(name[:-1]))
 
             self._add_method(getattr(module, name[-1]), prefix=prefix)
