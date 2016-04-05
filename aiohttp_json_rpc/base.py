@@ -320,23 +320,18 @@ class JsonRpc(object):
         return ws
 
     def _request_is_valid(self, request):
-        # Yep! seems legit.
         return True
 
     def _msg_is_valid(self, msg):
-        # Yep! seems legit.
         return True
 
     def _on_open(self, ws):
-        # Hi, what brought you along today?
         pass
 
     def _on_error(self, ws, msg=None, exception=None):
-        # Whoops... Things happened.
         pass
 
     def _on_close(self, ws):
-        # Bye, it was a pleasure to serve you.
         pass
 
     @asyncio.coroutine
