@@ -293,8 +293,10 @@ class JsonRpc(object):
                     ws.send_response(msg['id'], rsp)
 
                 except RpcInvalidParamsError as e:
-                    ws.send_error(msg['id'], ws.INVALID_PARAMS_ERROR,
-                                  str(e))
+                    ws.send_error(msg['id'], ws.INVALID_PARAMS_ERROR, str(e))
+
+                except RpcInvalidRequestError as e:
+                    ws.send_error(msg['id'], ws.INVALID_REQUEST_ERROR, str(e))
 
                 except Exception as exception:
                     buffer = io.StringIO()
