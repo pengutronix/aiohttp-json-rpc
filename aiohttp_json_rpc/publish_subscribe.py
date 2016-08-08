@@ -3,17 +3,25 @@ import asyncio
 
 
 class PublishSubscribeJsonRpc(JsonRpc):
+    def __init__(self, *args, **kwargs):
+        super(PublishSubscribeJsonRpc, self).__init__(*args, **kwargs)
+
+        self.state = {}
+
     @asyncio.coroutine
-    def subscribe(self, params, **kwargs):
-        if not hasattr(kwargs['ws'], 'topics'):
-            kwargs['ws'].topics = set()
+    def subscribe(self, params, ws, **kwargs):
+        if not hasattr(ws, 'topics'):
+            ws.topics = set()
 
         if type(params) is not list:
             params = [params]
 
         for topic in params:
-            if topic:
-                kwargs['ws'].topics.add(topic)
+            if topic and topic not in ws.topics:
+                ws.topics.add(topic)
+
+                if topic in self.state:
+                    ws.send_notification(topic, self.state[topic])
 
         return True
 
@@ -53,6 +61,8 @@ class PublishSubscribeJsonRpc(JsonRpc):
     def notify(self, topic, data=None):
         if type(topic) is not str:
             raise ValueError
+
+        self.state[topic] = data
 
         for client in self.filter(topic):
             client.send_notification(topic, data)
