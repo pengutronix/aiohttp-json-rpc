@@ -1,4 +1,10 @@
-import django  # NOQA
+class AuthBackend:
+    pass
+
+
+class DummyAuthBackend(AuthBackend):
+    def prepare_request(self, request):
+        request.methods = request.rpc.methods
 
 
 def login_required(function=None):
