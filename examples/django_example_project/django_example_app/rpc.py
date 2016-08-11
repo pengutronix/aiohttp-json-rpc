@@ -1,6 +1,6 @@
-from aiohttp_json_rpc.django.auth.decorators import login_required
+from aiohttp_json_rpc.auth import login_required
 
 
 @login_required
-async def ping(**context):
+async def ping(request):
     return 'pong'

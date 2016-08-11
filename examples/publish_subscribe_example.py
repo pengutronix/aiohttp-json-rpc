@@ -3,15 +3,9 @@
 # Author: Florian Scherf <f.scherf@pengutronix.de>
 
 from aiohttp.web import Application
-from aiohttp_json_rpc import PublishSubscribeJsonRpc
+from aiohttp_json_rpc import JsonRpc
 import datetime
 import asyncio
-
-
-class MyRpc(PublishSubscribeJsonRpc):
-    @asyncio.coroutine
-    def ping(self, **context):
-        return 'pong'
 
 
 @asyncio.coroutine
@@ -29,12 +23,14 @@ def clock(rpc):
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    myrpc = MyRpc()
 
-    loop.create_task(clock(myrpc))
+    rpc = JsonRpc()
+    rpc.add_topics('clock')
+
+    loop.create_task(clock(rpc))
 
     app = Application(loop=loop)
-    app.router.add_route('*', '/', myrpc)
+    app.router.add_route('*', '/', rpc)
 
     handler = app.make_handler()
 

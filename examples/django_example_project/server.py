@@ -6,6 +6,7 @@ from django_example_project.wsgi import application as django_app
 from aiohttp.web import Application
 from aiohttp_wsgi import WSGIHandler
 from aiohttp_json_rpc import JsonRpc
+from aiohttp_json_rpc.auth.django import DjangoAuthBackend
 import asyncio
 
 
@@ -13,7 +14,7 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     wsgi_handler = WSGIHandler(django_app)
     app = Application(loop=loop)
-    rpc = JsonRpc()
+    rpc = JsonRpc(auth_backend=DjangoAuthBackend())
 
     rpc.add_methods(
         ('', 'django_example_app.rpc')

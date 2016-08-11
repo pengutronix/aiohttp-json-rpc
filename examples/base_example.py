@@ -7,18 +7,21 @@ from aiohttp_json_rpc import JsonRpc
 import asyncio
 
 
-class MyRpc(JsonRpc):
-    @asyncio.coroutine
-    def ping(self, **context):
-        return 'pong'
+@asyncio.coroutine
+def ping(request):
+    return 'pong'
 
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    myrpc = MyRpc()
+    rpc = JsonRpc()
+
+    rpc.add_methods(
+        ('', ping),
+    )
 
     app = Application(loop=loop)
-    app.router.add_route('*', '/', myrpc)
+    app.router.add_route('*', '/', rpc)
 
     handler = app.make_handler()
 
