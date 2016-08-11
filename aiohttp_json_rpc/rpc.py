@@ -161,10 +161,6 @@ class JsonRpc(object):
 
     @asyncio.coroutine
     def __call__(self, request):
-        # check request
-        if not self._request_is_valid(request):
-            return aiohttp.web.Response(status=403)
-
         # prepare request
         request.rpc = self
         self.auth_backend.prepare_request(request)
@@ -190,14 +186,10 @@ class JsonRpc(object):
         ws = JsonWebSocketResponse()
         yield from ws.prepare(request)
         self.clients.append(ws)
-        self._on_open(ws)
 
         while not ws.closed:
             # check and receive message
             msg = yield from ws.receive()
-
-            if not self._msg_is_valid(msg):
-                continue
 
             # handle message
             if msg.tp == aiohttp.MsgType.text:
@@ -271,33 +263,11 @@ class JsonRpc(object):
                     for line in buffer.readlines():
                         self.logger.error(line[:-1])
 
-                    self._on_error(ws, msg, exception)
                     ws.send_error(msg['id'], ws.INTERNAL_ERROR,
                                   'Internal error.')
 
-            elif msg.tp == aiohttp.MsgType.close:
-                self._on_close(ws)
-
-            elif msg.tp == aiohttp.MsgType.error:
-                self._on_error(ws, msg)
-
         self.clients.remove(ws)
         return ws
-
-    def _request_is_valid(self, request):
-        return True
-
-    def _msg_is_valid(self, msg):
-        return True
-
-    def _on_open(self, ws):
-        pass
-
-    def _on_error(self, ws, msg=None, exception=None):
-        pass
-
-    def _on_close(self, ws):
-        pass
 
     @asyncio.coroutine
     def get_methods(self, request):
