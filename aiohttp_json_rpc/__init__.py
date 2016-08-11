@@ -1,1 +1,2 @@
-from .rpc import JsonRpc, RpcInvalidRequestError, RpcInvalidParamsError  # NOQA
+from .exceptions import RpcInvalidRequestError, RpcInvalidParamsError  # NOQA
+from .rpc import JsonRpc  # NOQA
