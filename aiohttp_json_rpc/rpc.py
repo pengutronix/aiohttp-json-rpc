@@ -8,6 +8,7 @@ import io
 
 from .exceptions import RpcInvalidRequestError, RpcInvalidParamsError
 from .websocket import JsonWebSocketResponse
+from .communicaton import JsonRpcRequest
 from .auth import DummyAuthBackend
 
 
@@ -166,21 +167,17 @@ class JsonRpc(object):
 
                 # call method and send response
                 try:
-                    if msg['method'] == 'get_methods':
-                        rsp = yield from self.get_methods(request)
+                    json_rpc_request = JsonRpcRequest(
+                        http_request=request,
+                        rpc=self,
+                        ws=ws,
+                        msg=msg,
+                    )
 
-                    else:
-                        context = {
-                            'msg': msg,
-                            'params': msg.get('params', None),
-                            'rpc': self,
-                            'ws': ws,
-                        }
+                    response = yield from request.methods[msg['method']](
+                        json_rpc_request)
 
-                        rsp = yield from request.methods[msg['method']](
-                            **context)
-
-                    ws.send_response(msg['id'], rsp)
+                    ws.send_response(msg['id'], response)
 
                 except RpcInvalidParamsError as e:
                     ws.send_error(msg['id'], ws.INVALID_PARAMS_ERROR, str(e))
@@ -207,41 +204,33 @@ class JsonRpc(object):
         return list(request.methods.keys())
 
     @asyncio.coroutine
-    def subscribe(self, params, ws, **kwargs):
-        if not hasattr(ws, 'topics'):
-            ws.topics = set()
+    def subscribe(self, request):
+        if type(request.params) is not list:
+            request.params = [request.params]
 
-        if type(params) is not list:
-            params = [params]
-
-        for topic in params:
-            if topic and topic not in ws.topics:
-                ws.topics.add(topic)
+        for topic in request.params:
+            if topic and topic not in request.topics:
+                request.topics.add(topic)
 
                 if topic in self.state:
-                    ws.send_notification(topic, self.state[topic])
+                    request.ws.send_notification(topic, self.state[topic])
 
         return True
 
     @asyncio.coroutine
-    def unsubscribe(self, params, **kwargs):
-        if not hasattr(kwargs['ws'], 'topics'):
-            kwargs['ws'].topics = set()
+    def unsubscribe(self, request):
+        if type(request.params) is not list:
+            request.params = [request.params]
 
-            return True
-
-        if type(params) is not list:
-            params = [params]
-
-        for topic in params:
-            if topic in kwargs['ws'].topics:
-                kwargs['ws'].topics.remove(topic)
+        for topic in request.params:
+            if topic and topic in request.topics:
+                request.topics.remove(topic)
 
         return True
 
     @asyncio.coroutine
-    def get_topics(self, params, **kwargs):
-        return list(getattr(kwargs['ws'], 'topics', set()))
+    def get_topics(self, request):
+        return list(request.topics)
 
     def filter(self, topics):
         if type(topics) is not list:
