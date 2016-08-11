@@ -12,10 +12,6 @@ from .auth import DummyAuthBackend
 
 
 class JsonRpc(object):
-    IGNORED_METHODS = [
-        'handle_websocket_request',
-    ]
-
     def __init__(self, auth_backend=None):
         self.clients = []
         self.methods = {}
@@ -39,8 +35,13 @@ class JsonRpc(object):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.addHandler(handler)
 
-        # find rpc-methods
-        self._add_methods_from_object(self, ignore=self.IGNORED_METHODS)
+        # methods
+        self.add_methods(
+            ('', self.get_methods),
+            ('', self.get_topics),
+            ('', self.subscribe),
+            ('', self.unsubscribe),
+        )
 
     def _add_method(self, method, prefix=''):
         if not asyncio.iscoroutinefunction(method):
