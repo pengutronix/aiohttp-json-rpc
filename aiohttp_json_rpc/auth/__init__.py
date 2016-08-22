@@ -5,6 +5,8 @@ class AuthBackend:
 class DummyAuthBackend(AuthBackend):
     def prepare_request(self, request):
         request.methods = request.rpc.methods
+        request.topics = set(request.rpc.topics.keys())
+        request.subscriptions = set()
 
 
 def login_required(function=None):

@@ -16,6 +16,7 @@ class JsonRpc(object):
     def __init__(self, auth_backend=None):
         self.clients = []
         self.methods = {}
+        self.topics = {}
         self.state = {}
 
         # auth backend
@@ -40,6 +41,7 @@ class JsonRpc(object):
         self.add_methods(
             ('', self.get_methods),
             ('', self.get_topics),
+            ('', self.get_subscriptions),
             ('', self.subscribe),
             ('', self.unsubscribe),
         )
@@ -93,6 +95,33 @@ class JsonRpc(object):
             else:
                 self._add_methods_from_object(method, prefix=prefix)
 
+    def add_topics(self, *topics):
+        for topic in topics:
+            if type(topic) not in (str, tuple):
+                raise ValueError('Topic has to be string or tuple')
+
+            # find name
+            if type(topic) == str:
+                name = topic
+
+            else:
+                name = topic[0]
+
+            # find and apply decorators
+            def func(request):
+                return True
+
+            if type(topic) == tuple and len(topic) > 1:
+                decorators = topic[1]
+
+                if not type(decorators) == tuple:
+                    decorators = (decorators, )
+
+                for decorator in decorators:
+                    func = decorator(func)
+
+            self.topics[name] = func
+
     @asyncio.coroutine
     def __call__(self, request):
         # prepare request
@@ -119,7 +148,8 @@ class JsonRpc(object):
         # prepare and register websocket
         ws = JsonWebSocketResponse()
         yield from ws.prepare(request)
-        self.clients.append(ws)
+        request.ws = ws
+        self.clients.append(request)
 
         while not ws.closed:
             # check and receive message
@@ -170,7 +200,6 @@ class JsonRpc(object):
                     json_rpc_request = JsonRpcRequest(
                         http_request=request,
                         rpc=self,
-                        ws=ws,
                         msg=msg,
                     )
 
@@ -196,7 +225,7 @@ class JsonRpc(object):
                     ws.send_error(msg['id'], ws.INTERNAL_ERROR,
                                   'Internal error.')
 
-        self.clients.remove(ws)
+        self.clients.remove(request)
         return ws
 
     @asyncio.coroutine
@@ -204,18 +233,26 @@ class JsonRpc(object):
         return list(request.methods.keys())
 
     @asyncio.coroutine
+    def get_topics(self, request):
+        return list(request.topics)
+
+    @asyncio.coroutine
+    def get_subscriptions(self, request):
+        return list(request.subscriptions)
+
+    @asyncio.coroutine
     def subscribe(self, request):
         if type(request.params) is not list:
             request.params = [request.params]
 
         for topic in request.params:
-            if topic and topic not in request.topics:
-                request.topics.add(topic)
+            if topic and topic in request.topics:
+                request.subscriptions.add(topic)
 
                 if topic in self.state:
                     request.ws.send_notification(topic, self.state[topic])
 
-        return True
+        return list(request.subscriptions)
 
     @asyncio.coroutine
     def unsubscribe(self, request):
@@ -223,14 +260,10 @@ class JsonRpc(object):
             request.params = [request.params]
 
         for topic in request.params:
-            if topic and topic in request.topics:
-                request.topics.remove(topic)
+            if topic and topic in request.subscriptions:
+                request.subscriptions.remove(topic)
 
-        return True
-
-    @asyncio.coroutine
-    def get_topics(self, request):
-        return list(request.topics)
+        return list(request.subscriptions)
 
     def filter(self, topics):
         if type(topics) is not list:
@@ -239,10 +272,10 @@ class JsonRpc(object):
         topics = set(topics)
 
         for client in self.clients:
-            if not hasattr(client, 'topics'):
+            if not client.ws:
                 continue
 
-            if len(topics & client.topics) > 0:
+            if len(topics & client.subscriptions) > 0:
                 yield client
 
     def notify(self, topic, data=None):
@@ -252,4 +285,4 @@ class JsonRpc(object):
         self.state[topic] = data
 
         for client in self.filter(topic):
-            client.send_notification(topic, data)
+            client.ws.send_notification(topic, data)

@@ -1,9 +1,12 @@
 class JsonRpcRequest:
-    def __init__(self, http_request, rpc, ws, msg):
+    def __init__(self, http_request, rpc, msg):
         self.http_request = http_request
         self.rpc = rpc
-        self.ws = ws
         self.msg = msg
+
+    @property
+    def ws(self):
+        return getattr(self.http_request, 'ws', None)
 
     @property
     def params(self):
@@ -26,11 +29,22 @@ class JsonRpcRequest:
 
     @property
     def topics(self):
-        if not hasattr(self.ws, 'topics'):
-            self.ws.topics = set()
+        if not hasattr(self.http_request, 'topics'):
+            self.http_request.topics = set()
 
-        return self.ws.topics
+        return self.http_request.topics
 
     @topics.setter
     def topics(self, value):
-        self.ws.topics = value
+        self.http_request.topics = value
+
+    @property
+    def subscriptions(self):
+        if not hasattr(self.http_request, 'subscriptions'):
+            self.http_request.subscriptions = set()
+
+        return self.http_request.subscriptions
+
+    @subscriptions.setter
+    def subscriptions(self, value):
+        self.http_request.subscriptions = value
