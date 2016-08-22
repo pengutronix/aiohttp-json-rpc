@@ -25,27 +25,9 @@ Installation
 Usage
 -----
 
-Any coroutine method of the RPC class is exposed to clients, except if its name starts with ``_`` or is blacklisted in ``rpc.IGNORED_METHODS``.
+RPC methods can be added by using ``rpc.add_method()``.
 
-RPC methods can be defined in the RPC itself or added by using ``rpc.add_method()``.
-
-All RPC methods are getting passed a context containing:
-
-``params``
-  The RPC message params.
-
-``user``
-  The Django user associated with the request.
-  May be ``None`` if Django is not installed or used.
-
-``rpc``
-  RPC object that called the RPC method.
-
-``ws``
-  JsonWebSocketResponse object that received the RPC call.
-
-``msg``
-  The original RPC message.
+All RPC methods are getting passed a ``aiohttp_json_rpc.communicaton.JsonRpcRequest``.
 
 
 Server
@@ -60,15 +42,18 @@ The following code implements a simple RPC server that serves the method ``ping`
   import asyncio
 
 
-  class MyRpc(JsonRpc):
-      @asyncio.coroutine
-      def ping(self, **context):
-          return 'pong'
+  @asyncio.coroutine
+  def ping(request):
+      return 'pong'
 
 
   if __name__ == '__main__':
       loop = asyncio.get_event_loop()
-      myrpc = MyRpc()
+
+      rpc = JsonRpc()
+      rpc.add_methods(
+          ('', ping),
+      )
 
       app = Application(loop=loop)
       app.router.add_route('*', '/', myrpc)
@@ -125,29 +110,6 @@ These are example responses the server would give if you call ``ws_call_method``
 Features
 --------
 
-Hooks
-~~~~~
-
-``def _request_is_valid(self, request)``
-  Gets called when request comes in.
-
-  Return ``False`` to make the RPC send an HTTP 403 to the client.
-
-``def _msg_is_valid(self, msg)``
-  Gets called when RPC message comes in.
-
-  Return ``False`` to ignore the incoming message.
-
-``def _on_open(self, ws)``
-  Gets called after ``_request_is_valid()`` returned ``True`` on Websocket open.
-
-``def _on_error(self, ws, msg=None, exception=None)``
-  Gets called when a RPC method raises an exception or an aiohttp error occurs.
-
-``def _on_close(self, ws)``
-  Gets called on connection close.
-
-
 Error Handling
 ~~~~~~~~~~~~~~
 
@@ -161,7 +123,7 @@ If your coroutine got called with wrong params you can raise an ``aiohttp_json_r
 
 
   @asyncio.coroutine
-  def add(params, **context):
+  def add(request):
       try:
           a = params.get('a')
           b = params.get('b')
@@ -182,7 +144,7 @@ The RPC will send an RPC ServerError and proceed as if nothing happened.
 .. code-block:: python
 
   @asyncio.coroutine
-  def divide(**context):
+  def divide(request):
       return 1 / 0  # will raise a ZeroDivisionError
 
 .. code-block::
@@ -198,39 +160,55 @@ The RPC will send an RPC ServerError and proceed as if nothing happened.
 Publish Subscribe
 ~~~~~~~~~~~~~~~~~
 
-Any client of an ``aiohttp_json_rpc.PublishSubscribeJsonRpc`` object can
-subscribe to a topic using the built-in RPC method ``subscribe()``.
+Any client of an RPC object can subscribe to a topic using the built-in RPC method ``subscribe()``.
 
-A topic name can be any string.
+Topics can be added using ``rpc.add_topics``.
 
 
-Django Authentication
-~~~~~~~~~~~~~~~~~~~~~
+Authentication
+~~~~~~~~~~~~~~
 
-The Django auth system works like in Django with decorators.
+The auth system works like in Django with decorators.
 For details see the corresponding Django documentation.
 
-+-------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Decorator                                                   | Django Equivalent                                                                                                                                                     |
-+=============================================================+=======================================================================================================================================================================+
-| aiohttp_json_rpc.django.auth.decorators.login_required      | `django.contrib.auth.decorators.login_required <https://docs.djangoproject.com/en/1.8/topics/auth/default/#django.contrib.auth.decorators.login_required>`_           |
-+-------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| aiohttp_json_rpc.django.auth.decorators.permission_required | `django.contrib.auth.decorators.permission_required <https://docs.djangoproject.com/en/1.8/topics/auth/default/#django.contrib.auth.decorators.permission_required>`_ |
-+-------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| aiohttp_json_rpc.django.auth.decorators.user_passes_test    | `django.contrib.auth.decorators.user_passes_test <https://docs.djangoproject.com/en/1.8/topics/auth/default/#django.contrib.auth.decorators.user_passes_test>`_       |
-+-------------------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++--------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Decorator                                        | Django Equivalent                                                                                                                                                     |
++==================================================+=======================================================================================================================================================================+
+| aiohttp_json_rpc.django.auth.login_required      | `django.contrib.auth.decorators.login_required <https://docs.djangoproject.com/en/1.8/topics/auth/default/#django.contrib.auth.decorators.login_required>`_           |
++--------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| aiohttp_json_rpc.django.auth.permission_required | `django.contrib.auth.decorators.permission_required <https://docs.djangoproject.com/en/1.8/topics/auth/default/#django.contrib.auth.decorators.permission_required>`_ |
++--------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| aiohttp_json_rpc.django.auth.user_passes_test    | `django.contrib.auth.decorators.user_passes_test <https://docs.djangoproject.com/en/1.8/topics/auth/default/#django.contrib.auth.decorators.user_passes_test>`_       |
++--------------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 .. code-block:: python
 
-  from aiohttp_json_rpc.django.auth.decorators import\
-      login_required, permission_required, user_passes_test
+  from aiohttp_json_rpc.auth import (
+      permission_required,
+      user_passes_test,
+      login_required,
+  )
+
+  from aiohttp_json_rpc.auth.django import DjangoAuthBackend
+  from aiohttp_json_rpc import JsonRpc
 
   @login_required
   @permission_required('ping')
   @user_passes_test(lambda user: user.is_superuser)
   @asyncio.coroutine
-  def ping(**context):
+  def ping(request):
       return 'pong'
+
+  if __name__ == '__main__':
+      rpc = JsonRpc(auth_backend=DjangoAuthBackend())
+
+      rpc.add_methods(
+          ('', ping),
+      )
+
+      rpc.add_topics(
+          ('foo', [login_required, permission_required('foo')])
+      )
 
 
 Class References
@@ -248,19 +226,8 @@ Methods
 
   If second arg is module or object all coroutines in it are getting added.
 
-
-RPC Methods
-'''''''''''
-
 ``async def get_methods()``
   Returns list of all available RPC methods.
-
-
-class aiohttp_json_rpc.PublishSubscribeJsonRpc(JsonRpc)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Methods
-'''''''
 
 ``def filter(self, topics)``
   Returns generator over all clients that have subscribed for given topic.
@@ -274,10 +241,6 @@ Methods
 
   Uses ``filter()``.
 
-
-RPC Methods
-'''''''''''
-
 ``async def subscribe(topics)``
   Subscribe to a topic.
 
@@ -289,4 +252,4 @@ RPC Methods
   Topics can be string or a list of strings.
 
 ``async def get_topics()``
-  Get topics as list of strings.
+  Get subscribable  topics as list of strings.
