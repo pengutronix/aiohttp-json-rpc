@@ -23,39 +23,49 @@ class DjangoAuthBackend(AuthBackend):
 
         return AnonymousUser()
 
-    def prepare_request(self, request):
-        request.methods = {}
-        request.user = self.get_user(request)
-
+    def _is_authorized(self, request, method):
         def run_tests(tests, user):
             for test in tests:
                 if not test(user):
                     return False
 
-            return True
+        if hasattr(method, 'login_required') and (
+           not request.user.is_active or
+           not request.user.is_authenticated()):
+            return False
 
-        # add methods to request
+        # permission check
+        if hasattr(method, 'permissions_required') and\
+           not request.user.is_superuser and\
+           not request.user.has_perms(method.permissions_required):
+            return False
+
+        # user tests
+        if hasattr(method, 'tests') and\
+           not request.user.is_superuser and\
+           not run_tests(method.tests, request.user):
+            return False
+
+        return True
+
+    def prepare_request(self, request):
+        request.user = self.get_user(request)
+
+        # methods
         request.methods = {}
 
         for name, method in request.rpc.methods.items():
-            # login check
-            if hasattr(method, 'login_required') and (
-               not request.user.is_active or
-               not request.user.is_authenticated()):
-                continue
+            if self._is_authorized(request, method):
+                request.methods[name] = method
 
-            # permission check
-            if hasattr(method, 'permissions_required') and\
-               not request.user.is_superuser and\
-               not request.user.has_perms(method.permissions_required):
-                continue
+        # topics
+        request.topics = set()
 
-            # user tests
-            if hasattr(method, 'tests') and\
-               not request.user.is_superuser and\
-               not run_tests(method.tests, request.user):
-                continue
+        for name, method in request.rpc.topics.items():
+            if self._is_authorized(request, method):
+                request.topics.add(name)
 
-            request.methods[name] = method
+        if not hasattr(request, 'subscriptions'):
+            request.subscriptions = set()
 
-        return request
+        request.subscriptions = request.topics & request.subscriptions
