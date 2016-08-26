@@ -4,18 +4,122 @@ import hashlib
 import os
 
 from .. import RpcInvalidParamsError
-from . import login_required, permission_required
+from . import login_required
 
 
 class PasswdAuthBackend:
     def __init__(self, passwd_file):
         self.passwd_file = passwd_file
+        self.read()
+
+    def read(self):
+        self.user = {}
+
+        try:
+            with open(self.passwd_file, 'r') as f:
+                for line in f:
+                    if line.endswith('\n'):
+                        line = line[:-1]
+
+                    data = line.split(':')
+
+                    if len(data) < 5:
+                        continue
+
+                    self.user[data[0]] = {
+                        'password_hash': binascii.unhexlify(data[1]),
+                        'salt': binascii.unhexlify(data[2]),
+                        'rounds': int(data[3]),
+                        'permissions': set(data[4].split(',')),
+                    }
+
+        except FileNotFoundError:
+            pass
+
+    def write(self):
+        with open(self.passwd_file, 'w') as f:
+            for username, data in self.user.items():
+                f.write('{username}:{password_hash}:{salt}:{rounds}:{permissions}\n'.format(  # NOQA
+                    username=username,
+                    password_hash=binascii.hexlify(
+                        data['password_hash']).decode(),
+                    salt=binascii.hexlify(data['salt']).decode(),
+                    rounds=str(data['rounds']),
+                    permissions=','.join(data['permissions']),
+                ))
+
+    def _create_user(self, username, password, salt=None, rounds=100000,
+                     permissions=None):
+
+        if username in self.user:
+            return False
+
+        salt = salt or os.urandom(16)
+
+        if not type(password) == bytes:
+            password = password.encode()
+
+        password_hash = hashlib.pbkdf2_hmac('sha256', password, salt, rounds)
+
+        self.user[username] = {
+            'password_hash': password_hash,
+            'salt': salt,
+            'rounds': rounds,
+            'permissions': permissions or []
+        }
+
+        self.write()
+
+        return True
+
+    def _delete_user(self, username):
+        if username not in self.user:
+            return False
+
+        self.user.pop(username)
+        self.write()
+
+        return True
+
+    def _set_password(self, username, password, salt=None, rounds=100000,
+                      old_password=''):
+
+        if old_password:
+            if not self._login(username, old_password)[0]:
+                return False
+
+        salt = salt or os.urandom(16)
+
+        if not type(password) == bytes:
+            password = password.encode()
+
+        password_hash = hashlib.pbkdf2_hmac('sha256', password, salt, rounds)
+
+        self.user[username]['password_hash'] = password_hash
+        self.user[username]['salt'] = salt
+        self.user[username]['rounds'] = rounds
+
+        return True
+
+    def _login(self, username, password):
+        if not type(password) == bytes:
+            password = password.encode()
+
+        if username in self.user:
+            password_hash = hashlib.pbkdf2_hmac('sha256', password,
+                                                self.user[username]['salt'],
+                                                self.user[username]['rounds'])
+
+            if password_hash == self.user[username]['password_hash']:
+                return username, self.user[username]['permissions']
+
+        return None, set()
 
     def _is_authorized(self, request, method):
         if hasattr(method, 'login_required') and not request.user:
             return False
 
-        if hasattr(method, 'permission_required') and not (
+        if hasattr(method, 'permissions_required') and not (
               len(request.permissions & method.permissions_required) ==
               len(method.permissions_required)):
             return False
@@ -32,10 +136,15 @@ class PasswdAuthBackend:
         # methods
         request.methods = {}
 
-        for name, method in {'create_user': self.create_user,
-                             'logout': self.logout,
-                             **request.rpc.methods}.items():
+        method_pool = {
+            **request.rpc.methods,
+            'logout': self.logout,
+            'create_user': self.create_user,
+            'set_password': self.set_password,
+            'set_user_password': self.set_user_password,
+        }
 
+        for name, method in method_pool.items():
             if self._is_authorized(request, method):
                 request.methods[name] = method
 
@@ -49,59 +158,10 @@ class PasswdAuthBackend:
             if self._is_authorized(request, method):
                 request.topics.add(name)
 
-        if not request.subscriptions:
+        if not hasattr(request, 'subscriptions'):
             request.subscriptions = set()
 
         request.subscriptions = request.topics & request.subscriptions
-
-    def _create_user(self, username, password, salt=None, rounds=100000,
-                     permissions=()):
-
-        salt = salt or os.urandom(16)
-
-        if not type(password) == bytes:
-            password = password.encode()
-
-        password_hash = hashlib.pbkdf2_hmac('sha256', password, salt, rounds)
-
-        password_hash = binascii.hexlify(password_hash)
-        salt = binascii.hexlify(salt)
-
-        line = '{username}:{password_hash}:{salt}:{rounds}:{permissions}\n'.format(  # NOQA
-            username=username,
-            password_hash=password_hash.decode(),
-            salt=salt.decode(),
-            rounds=str(rounds),
-            permissions=','.join(permissions),
-        )
-
-        with open(self.passwd_file, 'a+') as f:
-            f.write(line)
-
-    def _login(self, username, password):
-        if not type(password) == bytes:
-            password = password.encode()
-
-        with open(self.passwd_file, 'r') as f:
-            for line in f:
-                data = line.split(':')
-
-                if username == data[0]:
-                    try:
-                        password_hash = binascii.unhexlify(data[1])
-                        salt = binascii.unhexlify(data[2])
-                        rounds = int(data[3])
-
-                        new_password_hash = hashlib.pbkdf2_hmac(
-                            'sha256', password, salt, rounds)
-
-                    except:
-                        continue
-
-                    if password_hash == new_password_hash:
-                        return username, set(data[4].split(','))
-
-        return None, ()
 
     @asyncio.coroutine
     def login(self, request):
@@ -114,18 +174,27 @@ class PasswdAuthBackend:
         except KeyError:
             raise RpcInvalidParamsError
 
-        username, permissions = (yield from loop.run_in_executor(
-            None, self._login, username, password))
-
-        request.http_request.user = username
-        request.http_request.permissions = permissions
+        request.http_request.user, request.http_request.permissions = (
+            yield from loop.run_in_executor(
+                None, self._login, username, password)
+        )
 
         # rediscover methods
         self.prepare_request(request.http_request)
 
         return bool(username)
 
-    @permission_required('create-user')
+    @login_required
+    @asyncio.coroutine
+    def logout(self, request):
+        request.http_request.user = None
+        request.http_request.permissions = set()
+
+        self.prepare_request(request.http_request)
+
+        return True
+
+    @login_required
     @asyncio.coroutine
     def create_user(self, request):
         loop = asyncio.get_event_loop()
@@ -142,8 +211,19 @@ class PasswdAuthBackend:
 
     @login_required
     @asyncio.coroutine
-    def logout(self, request):
-        request.http_request.user = None
-        request.http_request.permissions = set()
+    def set_password(self, request):
+        loop = asyncio.get_event_loop()
 
-        return True
+        try:
+            username = request.params.get('username',
+                                          request.http_request.user)
+
+            password = request.params['password']
+            old_password = request.params.get('old_password', '')
+
+        except (KeyError, TypeError):
+            raise RpcInvalidParamsError
+
+        return (yield from loop.run_in_executor(None, self._set_password,
+                                                username, password,
+                                                old_password=old_password))
