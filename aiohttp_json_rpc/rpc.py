@@ -132,7 +132,7 @@ class JsonRpc(object):
         if request.method == 'GET':
 
             # handle Websocket
-            if request.headers.get('upgrade', '') == 'websocket':
+            if request.headers.get('upgrade', '').lower() == 'websocket':
                 return (yield from self.handle_websocket_request(request))
 
             # handle GET
