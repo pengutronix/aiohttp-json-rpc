@@ -141,7 +141,6 @@ class PasswdAuthBackend:
             'logout': self.logout,
             'create_user': self.create_user,
             'set_password': self.set_password,
-            'set_user_password': self.set_user_password,
         }
 
         for name, method in method_pool.items():
