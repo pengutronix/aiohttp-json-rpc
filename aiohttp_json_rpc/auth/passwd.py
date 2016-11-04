@@ -181,7 +181,7 @@ class PasswdAuthBackend:
         # rediscover methods
         self.prepare_request(request.http_request)
 
-        return bool(username)
+        return bool(request.http_request.user)
 
     @login_required
     @asyncio.coroutine
