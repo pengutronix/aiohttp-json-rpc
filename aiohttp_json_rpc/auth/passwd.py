@@ -137,18 +137,16 @@ class PasswdAuthBackend:
         request.methods = {}
 
         method_pool = {
-            **request.rpc.methods,
+            'login': self.login,
             'logout': self.logout,
             'create_user': self.create_user,
             'set_password': self.set_password,
+            **request.rpc.methods,
         }
 
         for name, method in method_pool.items():
             if self._is_authorized(request, method):
                 request.methods[name] = method
-
-        if not request.user:
-            request.methods['login'] = self.login
 
         # topics
         request.topics = set()
@@ -170,7 +168,7 @@ class PasswdAuthBackend:
             username = request.params['username']
             password = request.params['password']
 
-        except KeyError:
+        except(KeyError, TypeError):
             raise RpcInvalidParamsError
 
         request.http_request.user, request.http_request.permissions = (
