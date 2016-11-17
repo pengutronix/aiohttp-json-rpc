@@ -140,6 +140,7 @@ class PasswdAuthBackend:
             'login': self.login,
             'logout': self.logout,
             'create_user': self.create_user,
+            'delete_user': self.delete_user,
             'set_password': self.set_password,
             **request.rpc.methods,
         }
@@ -205,6 +206,20 @@ class PasswdAuthBackend:
 
         return (yield from loop.run_in_executor(None, self._create_user,
                                                 username, password))
+
+    @login_required
+    @asyncio.coroutine
+    def delete_user(self, request):
+        loop = asyncio.get_event_loop()
+
+        try:
+            username = request.params['username']
+
+        except (KeyError, TypeError):
+            raise RpcInvalidParamsError
+
+        return (yield from loop.run_in_executor(None, self._delete_user,
+                                                username))
 
     @login_required
     @asyncio.coroutine
