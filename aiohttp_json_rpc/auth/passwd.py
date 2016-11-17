@@ -236,6 +236,7 @@ class PasswdAuthBackend:
         except (KeyError, TypeError):
             raise RpcInvalidParamsError
 
-        return (yield from loop.run_in_executor(None, self._set_password,
-                                                username, password,
-                                                old_password=old_password))
+        return (yield from loop.run_in_executor(
+                    None, lambda: self._set_password(
+                        username, password,
+                        old_password=old_password)))
