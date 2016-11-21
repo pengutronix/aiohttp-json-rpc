@@ -285,4 +285,9 @@ class JsonRpc(object):
         self.state[topic] = data
 
         for client in self.filter(topic):
-            client.ws.send_notification(topic, data)
+            if not client.ws.closed:
+                try:
+                    client.ws.send_notification(topic, data)
+
+                except Exception as e:
+                    self.logger.exception(e)
