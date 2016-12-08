@@ -12,9 +12,13 @@ def local(original):
 
     class TaskLocal(object):
         def _get_storage(self):
-            task = asyncio.Task.current_task()
+            try:
+                task = asyncio.Task.current_task()
 
-            if task is None:
+                if task is None:
+                    return original
+
+            except RuntimeError:
                 return original
 
             storage = getattr(task, 'local', None)
