@@ -136,14 +136,14 @@ class PasswdAuthBackend:
         # methods
         request.methods = {}
 
-        method_pool = {
-            'login': self.login,
-            'logout': self.logout,
-            'create_user': self.create_user,
-            'delete_user': self.delete_user,
-            'set_password': self.set_password,
-            **request.rpc.methods,
-        }
+        method_pool = dict(
+            login=self.login,
+            logout=self.logout,
+            create_user=self.create_user,
+            delete_user=self.delete_user,
+            set_password=self.set_password,
+            **request.rpc.methods
+        )
 
         for name, method in method_pool.items():
             if self._is_authorized(request, method):
