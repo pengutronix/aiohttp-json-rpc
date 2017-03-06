@@ -214,13 +214,8 @@ class JsonRpc(object):
                 except RpcInvalidRequestError as e:
                     ws.send_error(msg['id'], ws.INVALID_REQUEST_ERROR, str(e))
 
-                except Exception as exception:
-                    buffer = io.StringIO()
-                    traceback.print_exc(file=buffer)
-                    buffer.seek(0)
-
-                    for line in buffer.readlines():
-                        self.logger.error(line[:-1])
+                except Exception as e:
+                    logging.error(e, exc_info=True)
 
                     ws.send_error(msg['id'], ws.INTERNAL_ERROR,
                                   'Internal error.')
