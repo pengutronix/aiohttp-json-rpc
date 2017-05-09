@@ -156,7 +156,7 @@ class JsonRpc(object):
             msg = yield from ws.receive()
 
             # handle message
-            if msg.tp == aiohttp.MsgType.text:
+            if msg.tp == aiohttp.WSMsgType.TEXT:
 
                 # parse json
                 try:
