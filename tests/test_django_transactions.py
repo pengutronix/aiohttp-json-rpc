@@ -129,8 +129,6 @@ async def test_cuncurrent_transactions(event_loop, unused_tcp_port):
         rpc communication is broken or hanging.
     """
 
-    from django.db import connections
-
     from django_project.models import Item
     from aiohttp_json_rpc.django import patch_db_connections
 

@@ -1,10 +1,8 @@
 import asyncio
 import aiohttp
 import importlib
-import traceback
 import logging
 import json
-import io
 
 from .exceptions import RpcInvalidRequestError, RpcInvalidParamsError
 from .websocket import JsonWebSocketResponse
