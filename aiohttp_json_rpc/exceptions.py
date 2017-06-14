@@ -1,16 +1,33 @@
 class RpcError(Exception):
-    def __init__(self, message=''):
-        self.message = message
+    MESSAGE = ''
+
+    def __init__(self, data=None):
+        self.data = data
 
     def __str__(self):
-        return str(self.message)
+        return self.MESSAGE
 
 
 class RpcInvalidRequestError(RpcError):
-    def __init__(self, message='Invalid request'):
-        self.message = message
+    ERROR_CODE = -32600
+    MESSAGE = 'Invalid request'
+
+
+class RpcMethodNotFoundError(RpcError):
+    ERROR_CODE = -32601
+    MESSAGE = 'Method not found'
+
+
+class RpcInternalError(RpcError):
+    ERROR_CODE = -32603
+    MESSAGE = 'Internal Error'
 
 
 class RpcInvalidParamsError(RpcError):
-    def __init__(self, message='Invalid params'):
-        self.message = message
+    ERROR_CODE = -32602
+    MESSAGE = 'Invalid params'
+
+
+class RpcParseError(RpcError):
+    ERROR_CODE = -32700
+    MESSAGE = 'Invalid JSON was received'
