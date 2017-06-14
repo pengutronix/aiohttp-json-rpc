@@ -11,4 +11,12 @@ setup(name='aiohttp-json-rpc',
       license='Apache 2.0',
       install_requires=['aiohttp>=2,<2.1'],
       packages=find_packages(),
-      zip_safe=False)
+      zip_safe=False,
+      entry_points={
+          'pytest11': [
+              'aiohttp-json-rpc = aiohttp_json_rpc.pytest',
+          ]
+      },
+      classifiers=[
+          'Framework :: Pytest',
+      ])
