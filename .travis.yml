@@ -1,0 +1,12 @@
+language: python
+
+branches:
+ only:
+  - master
+  - dev/travis
+
+install:
+ - pip install tox
+
+script:
+ - tox
