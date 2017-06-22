@@ -38,19 +38,20 @@ class RpcContext(object):
         self.url = url
         self.clients = []
 
-    async def make_clients(self, count):
+    async def make_clients(self, count, cookies=None):
         clients = [JsonRpcClient() for i in range(count)]
 
         await asyncio.gather(
-            *[i.connect(self.host, self.port, url=self.url) for i in clients]
+            *[i.connect(self.host, self.port, url=self.url,
+                        cookies=cookies or {}) for i in clients]
         )
 
         self.clients += clients
 
         return clients
 
-    async def make_client(self):
-        clients = await self.make_clients(1)
+    async def make_client(self, cookies=None):
+        clients = await self.make_clients(1, cookies=cookies)
 
         return clients[0]
 
