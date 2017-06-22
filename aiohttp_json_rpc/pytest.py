@@ -60,7 +60,7 @@ class RpcContext(object):
         )
 
 
-def _gen_rpc_context(loop, host, port, rpc, rpc_route, routes=()):
+def gen_rpc_context(loop, host, port, rpc, rpc_route, routes=()):
     # make app
     app = Application(loop=loop)
 
@@ -95,8 +95,8 @@ def rpc_context(event_loop, unused_tcp_port):
     rpc = JsonRpc()
     rpc_route = ('*', '/rpc', rpc)
 
-    for context in _gen_rpc_context(event_loop, 'localhost', unused_tcp_port,
-                                    rpc, rpc_route):
+    for context in gen_rpc_context(event_loop, 'localhost', unused_tcp_port,
+                                   rpc, rpc_route):
         yield context
 
 
@@ -112,7 +112,7 @@ if DJANGO:
             ('*', '/{path_info:.*}', WSGIHandler(django_wsgi_application)),
         ]
 
-        for context in _gen_rpc_context(event_loop, 'localhost',
-                                        unused_tcp_port, rpc, rpc_route,
-                                        routes):
+        for context in gen_rpc_context(event_loop, 'localhost',
+                                       unused_tcp_port, rpc, rpc_route,
+                                       routes):
             yield context
