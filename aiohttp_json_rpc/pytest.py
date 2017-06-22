@@ -61,7 +61,8 @@ class RpcContext(object):
         )
 
 
-def gen_rpc_context(loop, host, port, rpc, rpc_route, routes=()):
+def gen_rpc_context(loop, host, port, rpc, rpc_route, routes=(),
+                    RpcContext=RpcContext):
     # make app
     app = Application(loop=loop)
 
