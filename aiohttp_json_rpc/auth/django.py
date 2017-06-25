@@ -24,11 +24,6 @@ class DjangoAuthBackend(AuthBackend):
         return AnonymousUser()
 
     def _is_authorized(self, request, method):
-        def run_tests(tests, user):
-            for test in tests:
-                if not test(user):
-                    return False
-
         if hasattr(method, 'login_required') and (
            not request.user.is_active or
            not request.user.is_authenticated()):
@@ -41,10 +36,10 @@ class DjangoAuthBackend(AuthBackend):
             return False
 
         # user tests
-        if hasattr(method, 'tests') and\
-           not request.user.is_superuser and\
-           not run_tests(method.tests, request.user):
-            return False
+        if hasattr(method, 'tests') and not request.user.is_superuser:
+            for test in method.tests:
+                if not test(request.user):
+                    return False
 
         return True
 
