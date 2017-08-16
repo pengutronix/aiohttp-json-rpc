@@ -10,14 +10,14 @@ class JsonRpcRequest:
 
     @property
     def params(self):
-        if 'params' not in self.msg:
-            self.msg['params'] = None
+        if 'params' not in self.msg.data:
+            self.msg.data['params'] = None
 
-        return self.msg['params']
+        return self.msg.data['params']
 
     @params.setter
     def params(self, value):
-        self.msg['params'] = value
+        self.msg.data['params'] = value
 
     @property
     def methods(self):
