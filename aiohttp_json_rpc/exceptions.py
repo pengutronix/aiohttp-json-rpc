@@ -1,8 +1,9 @@
 class RpcError(Exception):
     MESSAGE = ''
 
-    def __init__(self, data=None):
+    def __init__(self, msg_id=None, data=None):
         self.data = data
+        self.msg_id = msg_id
 
     def __str__(self):
         return self.MESSAGE

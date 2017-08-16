@@ -62,11 +62,11 @@ def decode_msg(raw_msg):
 
     # check jsonrpc version
     if 'jsonrpc' not in msg_data or not msg_data['jsonrpc'] == JSONRPC:
-        raise RpcInvalidRequestError
+        raise RpcInvalidRequestError(msg_id=msg_data.get('id', None))
 
     # check requierd fields
     if not len(set(['error', 'result', 'method']) & set(msg_data)) == 1:
-        raise RpcInvalidRequestError
+        raise RpcInvalidRequestError(msg_id=msg_data.get('id', None))
 
     # find message type
     if 'method' in msg_data:
@@ -102,18 +102,18 @@ def decode_msg(raw_msg):
 
         # every Response object has to define an id
         if 'id' not in msg_data:
-            raise RpcInvalidRequestError
+            raise RpcInvalidRequestError(msg_id=msg_data.get('id', None))
 
     # Error objects
     if msg_type == JsonRpcMsgTyp.ERROR:
 
         # the error field has to be a dict
         if type(msg_data['error']) is not dict:
-            raise RpcInvalidRequestError
+            raise RpcInvalidRequestError(msg_id=msg_data.get('id', None))
 
         # the error field has to define 'code' and 'message'
         if not len(set(['code', 'message']) & set(msg_data['error'])) == 2:
-            raise RpcInvalidRequestError
+            raise RpcInvalidRequestError(msg_id=msg_data.get('id', None))
 
         # set empty 'data' field if not set
         if 'data' not in msg_data['error']:
@@ -155,7 +155,7 @@ def encode_result(id, result):
 
 
 def encode_error(error, id=None):
-    if type(error) is not RpcError:
+    if isinstance(error, RpcError):
         raise ValueError
 
     msg = {
@@ -168,6 +168,9 @@ def encode_error(error, id=None):
 
     if id is not None:
         msg['id'] = id
+
+    elif error.msg_id is not None:
+        msg['id'] = error.msg_id
 
     if error.data is not None:
         msg['error']['data'] = error.data
