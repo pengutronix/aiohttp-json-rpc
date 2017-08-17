@@ -155,7 +155,7 @@ def encode_result(id, result):
 
 
 def encode_error(error, id=None):
-    if isinstance(error, RpcError):
+    if not isinstance(error, RpcError):
         raise ValueError
 
     msg = {
