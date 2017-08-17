@@ -4,6 +4,7 @@ import importlib
 import logging
 
 from .protocol import JsonRpcMsgTyp, decode_msg, encode_result, encode_error
+from .websocket import JsonWebSocketResponse
 from .communicaton import JsonRpcRequest
 from .auth import DummyAuthBackend
 
@@ -147,79 +148,91 @@ class JsonRpc(object):
         elif request.method == 'POST':
             return aiohttp.web.Response(status=405)
 
-    @asyncio.coroutine
-    def handle_websocket_request(self, http_request):
+    async def _handle_rpc_msg(self, http_request, raw_msg):
+        try:
+            msg = decode_msg(raw_msg.data)
+            self.logger.debug('message decoded: %s', msg)
+
+        except RpcError as error:
+            http_request.ws.send_str(encode_error(error))
+
+            return
+
+        # handle requests
+        if msg.type == JsonRpcMsgTyp.REQUEST:
+            self.logger.debug('msg gets handled as request')
+
+            # check if method is available
+            if msg.data['method'] not in http_request.methods:
+                self.logger.debug('method %s is unknown or restricted',
+                                  msg.data['method'])
+
+                http_request.ws.send_str(encode_error(
+                    RpcMethodNotFoundError(msg_id=msg.data.get('id', None))
+                ))
+
+                return
+
+            # call method
+            try:
+                json_rpc_request = JsonRpcRequest(
+                    http_request=http_request,
+                    rpc=self,
+                    msg=msg,
+                )
+
+                result = await http_request.methods[msg.data['method']](
+                    json_rpc_request)
+
+                http_request.ws.send_str(encode_result(msg.data['id'], result))
+
+            except (RpcInvalidParamsError,
+                    RpcInvalidRequestError) as error:
+
+                http_request.ws.send_str(encode_error(error))
+
+            except Exception as error:
+                logging.error(error, exc_info=True)
+
+                http_request.ws.send_str(encode_error(
+                    RpcInternalError(msg_id=msg.data.get('id', None))
+                ))
+
+        # handle result
+        elif msg.type == JsonRpcMsgTyp.RESULT:
+            self.logger.debug('msg gets handled as result')
+
+            http_request.pending[msg.data['id']].set_result(
+                msg.data['result'])
+
+        else:
+            self.logger.debug('unsupported msg type (%s)', msg.type)
+
+            http_request.ws.send_str(encode_error(
+                RpcInvalidRequestError(msg_id=msg.data.get('id', None))
+            ))
+
+    async def handle_websocket_request(self, http_request):
+        loop = asyncio.get_event_loop()
+
+        http_request.msg_id = 0
+        http_request.pending = {}
+
         # prepare and register websocket
-        ws = aiohttp.web.WebSocketResponse()
-        yield from ws.prepare(http_request)
+        ws = JsonWebSocketResponse()
+        await ws.prepare(http_request)
         http_request.ws = ws
         self.clients.append(http_request)
 
         while not ws.closed:
-            # receive and parse message
-            raw_msg = yield from ws.receive()
+            self.logger.debug('waiting for messages')
+            raw_msg = await ws.receive()
 
             if not raw_msg.tp == aiohttp.WSMsgType.TEXT:
                 continue
 
             self.logger.debug('raw msg received: %s', raw_msg.data)
-
-            try:
-                msg = decode_msg(raw_msg.data)
-                self.logger.debug('message decoded: %s', msg)
-
-            except RpcError as error:
-                ws.send_str(encode_error(error))
-
-                continue
-
-            # check message type
-            if msg.type not in (JsonRpcMsgTyp.REQUEST, ):
-                self.logger.debug('messag type (%s) is not supported',
-                                  msg.type)
-                continue
-
-            # handle requests
-            if msg.type == JsonRpcMsgTyp.REQUEST:
-                self.logger.debug('msg gets handled as request')
-
-                # check if method is available
-                if msg.data['method'] not in http_request.methods:
-                    self.logger.debug('method %s is unknown or restricted',
-                                      msg.data['method'])
-
-                    ws.send_str(encode_error(
-                        RpcMethodNotFoundError(msg_id=msg.data.get('id', None))
-                    ))
-
-                    continue
-
-                # call method
-                try:
-                    json_rpc_request = JsonRpcRequest(
-                        http_request=http_request,
-                        rpc=self,
-                        msg=msg,
-                    )
-
-                    result = (
-                        yield from http_request.methods[msg.data['method']](
-                            json_rpc_request)
-                    )
-
-                    ws.send_str(encode_result(msg.data['id'], result))
-
-                except (RpcInvalidParamsError,
-                        RpcInvalidRequestError) as error:
-
-                    ws.send_str(encode_error(error))
-
-                except Exception as error:
-                    logging.error(error, exc_info=True)
-
-                    ws.send_str(encode_error(
-                        RpcInternalError(msg_id=msg.data.get('id', None))
-                    ))
+            loop.create_task(self._handle_rpc_msg(http_request, raw_msg))
 
         self.clients.remove(http_request)
         return ws

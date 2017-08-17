@@ -3,8 +3,16 @@ import aiohttp
 import asyncio
 import logging
 
-from .protocol import decode_msg, encode_request
-from .exceptions import RpcError
+from .exceptions import RpcMethodNotFoundError
+
+from .protocol import (
+    JsonRpcMsgTyp,
+    encode_request,
+    encode_error,
+    encode_result,
+    decode_msg,
+)
+
 
 default_logger = logging.getLogger('aiohttp-json-rpc.client')
 
@@ -17,15 +25,39 @@ class JsonRpcClient(object):
         self._msg_id = 0
         self._logger = logger
         self._handler = {}
+        self._methods = {}
 
         self._id = JsonRpcClient._client_id
         JsonRpcClient._client_id += 1
 
+    def add_methods(self, *methods):
+        for prefix, method in methods:
+            name = method.__name__
+
+            if prefix:
+                name = '{}__{}'.format(prefix, name)
+
+            self._methods[name] = method
+
+    async def _handle_request(self, msg):
+        if not msg.data['method'] in self._methods:
+            response = encode_error(
+                RpcMethodNotFoundError(msg_id=msg.data.get('id', None)))
+
+        else:
+            result = await self._methods[msg.data['method']](
+                msg.data['params'])
+
+            response = encode_result(msg.data['id'], result)
+
+        self._logger.debug('#%s: > %s', self._id, response)
+        self._ws.send_str(response)
+
     async def _handle_msgs(self):
         self._logger.debug('#%s: worker start...', self._id)
 
-        try:
-            while not self._ws.closed:
+        while not self._ws.closed:
+            try:
                 raw_msg = await self._ws.receive()
 
                 self._logger.debug('#%s: < %s', self._id, raw_msg.data)
@@ -33,31 +65,29 @@ class JsonRpcClient(object):
                 if raw_msg.type != web.MsgType.text:
                     continue
 
-                try:
-                    rpc_msg = decode_msg(raw_msg.data)
+                msg = decode_msg(raw_msg.data)
 
-                    # notifications
-                    if rpc_msg.data['id'] is None:
-                        if not rpc_msg.data['method'] in self._handler:
-                            continue
+                # requests
+                if msg.type == JsonRpcMsgTyp.REQUEST:
+                    self._logger.debug('#%s: handled as request', self._id)
+                    await self._handle_request(msg)
+                    self._logger.debug('#%s: handled', self._id)
 
-                        await self._handler['method'](rpc_msg.data)
+                # notifications
+                elif msg.type == JsonRpcMsgTyp.NOTIFICATION:
+                    if msg.data['method'] in self._handler:
+                        await self._handler['method'](msg.data)
 
-                    # results
-                    if rpc_msg.data['id'] not in self._pending:
-                        continue
+                # results
+                elif msg.type == JsonRpcMsgTyp.RESULT:
+                    if msg.data['id'] in self._pending:
+                        self._pending[msg.data['id']].set_result(
+                            msg.data['result'])
 
-                    self._pending[rpc_msg.data['id']].set_result(
-                        rpc_msg.data['result'])
+            except Exception as e:
+                self._logger.error(e, exc_info=True)
 
-                except RpcError as e:
-                    self._logger.error(e, exc_info=True)
-
-        except Exception as e:
-            self._logger.error(e, exc_info=True)
-
-        finally:
-            self._logger.debug('#%s: worker stopped', self._id)
+        self._logger.debug('#%s: worker stopped', self._id)
 
     async def connect(self, host, port, url='/', protocol='ws', cookies=None):
         fqdn = '{}://{}:{}{}'.format(protocol, host, port, url)

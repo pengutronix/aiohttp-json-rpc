@@ -1,3 +1,8 @@
+import asyncio
+
+from .protocol import encode_request
+
+
 class JsonRpcRequest:
     def __init__(self, http_request, rpc, msg):
         self.http_request = http_request
@@ -48,3 +53,28 @@ class JsonRpcRequest:
     @subscriptions.setter
     def subscriptions(self, value):
         self.http_request.subscriptions = value
+
+    async def call(self, method, params=None, timeout=None):
+        msg_id = self.http_request.msg_id
+        self.http_request.msg_id += 1
+        self.http_request.pending[msg_id] = asyncio.Future()
+
+        request = encode_request(method, id=msg_id, params=params)
+
+        self.http_request.ws.send_str(request)
+
+        if timeout:
+            await asyncio.wait_for(self.http_request.pending[msg_id],
+                                   timeout=timeout)
+
+        else:
+            await self.http_request.pending[msg_id]
+
+        result = self.http_request.pending[msg_id].result()
+        del self.http_request.pending[msg_id]
+
+        return result
+
+    async def confirm(self, message='', timeout=None):
+        return await self.call('confirm', params={'message': message},
+                               timeout=timeout)
