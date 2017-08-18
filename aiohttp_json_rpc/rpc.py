@@ -18,11 +18,12 @@ from .exceptions import (
 
 
 class JsonRpc(object):
-    def __init__(self, auth_backend=None):
+    def __init__(self, auth_backend=None, logger=None):
         self.clients = []
         self.methods = {}
         self.topics = {}
         self.state = {}
+        self.logger = logging.getLogger('aiohttp-json-rpc.server')
 
         # auth backend
         if not auth_backend:
@@ -30,17 +31,6 @@ class JsonRpc(object):
 
         else:
             self.auth_backend = auth_backend
-
-        # setup logging
-        formatter = logging.Formatter(
-            fmt='%(levelname)s:{}: %(message)s'.format(
-                self.__class__.__name__)
-        )
-
-        handler = logging.StreamHandler()
-        handler.setFormatter(formatter)
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.logger.addHandler(handler)
 
         # methods
         self.add_methods(
