@@ -3,7 +3,6 @@ import asyncio
 import pytest
 import os
 
-from aiohttp_wsgi import WSGIHandler
 from aiohttp.web import Application
 
 from aiohttp_json_rpc import JsonRpc, JsonRpcClient
@@ -106,6 +105,7 @@ if DJANGO:
     @pytest.yield_fixture
     def django_rpc_context(db, event_loop, unused_tcp_port):
         from aiohttp_json_rpc.auth.django import DjangoAuthBackend
+        from aiohttp_wsgi import WSGIHandler
 
         rpc = JsonRpc(auth_backend=DjangoAuthBackend())
         rpc_route = ('*', '/rpc', rpc)
