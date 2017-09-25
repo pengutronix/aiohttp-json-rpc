@@ -56,7 +56,7 @@ The following code implements a simple RPC server that serves the method ``ping`
       )
 
       app = Application(loop=loop)
-      app.router.add_route('*', '/', myrpc)
+      app.router.add_route('*', '/', rpc)
 
       handler = app.make_handler()
 
