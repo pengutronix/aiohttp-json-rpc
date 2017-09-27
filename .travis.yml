@@ -17,6 +17,7 @@ python:
 - &pypy3 pypy3.5-5.8.0
 
 env:
+- ""
 - TOXENV=django18
 - TOXENV=django111
 
