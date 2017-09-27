@@ -70,7 +70,7 @@ def decode_msg(raw_msg):
 
     # find message type
     if 'method' in msg_data:
-        if 'id' in msg_data:
+        if 'id' in msg_data and msg_data['id'] is not None:
             msg_type = JsonRpcMsgTyp.REQUEST
 
         else:
