@@ -1,5 +1,5 @@
 def test_valid_message():
-    from aiohttp_json_rpc.protocol import decode_msg
+    from aiohttp_json_rpc.protocol import JsonRpcMsgTyp, decode_msg
 
     raw_msg = '''
     {
@@ -12,6 +12,8 @@ def test_valid_message():
 
     msg = decode_msg(raw_msg)
 
+    assert msg.type == JsonRpcMsgTyp.REQUEST
+
     assert msg.data['jsonrpc'] == '2.0'
     assert msg.data['id'] == 0
     assert msg.data['method'] == 'foo'
@@ -19,7 +21,7 @@ def test_valid_message():
 
 
 def test_valid_notification():
-    from aiohttp_json_rpc.protocol import decode_msg
+    from aiohttp_json_rpc.protocol import JsonRpcMsgTyp, decode_msg
 
     # id is Null
     raw_msg = '''
@@ -32,6 +34,8 @@ def test_valid_notification():
     '''
 
     msg = decode_msg(raw_msg)
+
+    assert msg.type == JsonRpcMsgTyp.NOTIFICATION
 
     assert msg.data['jsonrpc'] == '2.0'
     assert msg.data['id'] is None
@@ -48,6 +52,8 @@ def test_valid_notification():
     '''
 
     msg = decode_msg(raw_msg)
+
+    assert msg.type == JsonRpcMsgTyp.NOTIFICATION
 
     assert msg.data['jsonrpc'] == '2.0'
     assert msg.data['id'] is None
