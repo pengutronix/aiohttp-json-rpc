@@ -76,7 +76,7 @@ class JsonRpcClient(object):
                 # notifications
                 elif msg.type == JsonRpcMsgTyp.NOTIFICATION:
                     if msg.data['method'] in self._handler:
-                        await self._handler['method'](msg.data)
+                        await self._handler[msg.data['method']](msg.data)
 
                 # results
                 elif msg.type == JsonRpcMsgTyp.RESULT:
