@@ -10,6 +10,7 @@ setup(name='aiohttp-json-rpc',
       author_email='f.scherf@pengutronix.de',
       license='Apache 2.0',
       install_requires=['aiohttp>=2,<3'],
+      python_requires='>=3.5',
       packages=find_packages(),
       zip_safe=False,
       entry_points={
