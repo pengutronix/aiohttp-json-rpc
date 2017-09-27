@@ -8,6 +8,8 @@ import logging
 
 logger = logging.getLogger('test')
 
+pytestmark = pytest.mark.django(reason='Depends on Django')
+
 
 async def watchdog(futures):
     logger.info('Watchdog: started')

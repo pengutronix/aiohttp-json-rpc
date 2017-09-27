@@ -1,12 +1,34 @@
 language: python
 
-branches:
- only:
-  - master
-  - dev/travis
+os: linux
+dist: trusty
+
+sudo: false
+group: edge
+
+stages:
+- lint
+- test
+
+# Base test matrix run in linux containers:
+python:
+- 3.5
+- &mainstream_python 3.6
+- &pypy3 pypy3.5-5.8.0
+
+env:
+- ""
+- TOXENV=django18
+- TOXENV=django111
+
+jobs:
+  fast_finish: true
+  include:
+  - stage: lint
+    env: TOXENV=lint
 
 install:
- - pip install tox
+- pip install tox "setuptools>=36.3"
 
 script:
- - tox
+- tox
