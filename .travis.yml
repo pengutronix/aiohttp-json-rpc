@@ -6,6 +6,10 @@ dist: trusty
 sudo: false
 group: edge
 
+stages:
+- lint
+- test
+
 # Base test matrix run in linux containers:
 python:
 - 3.5
@@ -15,13 +19,17 @@ python:
 jobs:
   fast_finish: true
   include:
-  - env: TOXENV=py35-django18
+  - stage: lint
+    env: TOXENV=lint
+  - stage: test
+    env: TOXENV=django18
     python: 3.5
-  - env: TOXENV=py35-django111
+  - stage: test
+    env: TOXENV=django111
     python: 3.5
 
 install:
 - pip install tox "setuptools>=36.3"
 
 script:
-- tox -e${TOXENV-python}
+- tox
