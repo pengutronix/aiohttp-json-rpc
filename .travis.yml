@@ -16,17 +16,15 @@ python:
 - &mainstream_python 3.6
 - &pypy3 pypy3.5-5.8.0
 
+env:
+- TOXENV=django18
+- TOXENV=django111
+
 jobs:
   fast_finish: true
   include:
   - stage: lint
     env: TOXENV=lint
-  - stage: test
-    env: TOXENV=django18
-    python: 3.5
-  - stage: test
-    env: TOXENV=django111
-    python: 3.5
 
 install:
 - pip install tox "setuptools>=36.3"
