@@ -1,12 +1,12 @@
 language: python
 
 branches:
- only:
+  only:
   - master
   - dev/travis
 
 install:
- - pip install tox
+- pip install tox
 
 script:
- - tox
+- tox
