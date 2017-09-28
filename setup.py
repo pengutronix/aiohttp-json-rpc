@@ -17,7 +17,4 @@ setup(name='aiohttp-json-rpc',
           'pytest11': [
               'aiohttp-json-rpc = aiohttp_json_rpc.pytest',
           ]
-      },
-      classifiers=[
-          'Framework :: Pytest',
-      ])
+     })
