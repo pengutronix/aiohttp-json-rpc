@@ -78,17 +78,17 @@ class JsonRpc(object):
             if not type(arg[0]) == str:
                 raise ValueError('prefix has to be str')
 
-            prefix = prefix or arg[0]
+            prefix_ = prefix or arg[0]
             method = arg[1]
 
             if asyncio.iscoroutinefunction(method):
-                self._add_method(method, prefix=prefix)
+                self._add_method(method, prefix=prefix_)
 
             elif type(method) == str:
-                self._add_methods_by_name(method, prefix=prefix)
+                self._add_methods_by_name(method, prefix=prefix_)
 
             else:
-                self._add_methods_from_object(method, prefix=prefix)
+                self._add_methods_from_object(method, prefix=prefix_)
 
     def add_topics(self, *topics):
         for topic in topics:
