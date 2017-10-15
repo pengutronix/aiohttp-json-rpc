@@ -23,7 +23,7 @@ class JsonRpc(object):
         self.methods = {}
         self.topics = {}
         self.state = {}
-        self.logger = logging.getLogger('aiohttp-json-rpc.server')
+        self.logger = logger or logging.getLogger('aiohttp-json-rpc.server')
 
         # auth backend
         if not auth_backend:
