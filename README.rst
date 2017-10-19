@@ -1,10 +1,19 @@
 .. image:: https://img.shields.io/pypi/v/aiohttp-json-rpc.svg
+   :align: left
    :target: https://pypi.org/project/aiohttp-json-rpc
 
 .. image:: https://img.shields.io/travis/pengutronix/aiohttp-json-rpc/master.svg?label=Linux%20build%20%40%20Travis%20CI
+   :align: left
    :target: http://travis-ci.org/pengutronix/aiohttp-json-rpc
 
 .. image:: https://img.shields.io/pypi/pyversions/aiohttp-json-rpc.svg
+   :align: left
+
+.. image:: https://img.shields.io/pypi/l/aiohttp-json-rpc.svg
+   :align: left
+
+.. image:: https://img.shields.io/pypi/wheel/aiohttp-json-rpc.svg
+   :align: left
 
 aiohttp-json-rpc
 ================
