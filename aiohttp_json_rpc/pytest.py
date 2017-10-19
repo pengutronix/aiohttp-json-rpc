@@ -84,11 +84,17 @@ def gen_rpc_context(loop, host, port, rpc, rpc_route, routes=(),
     loop.run_until_complete(rpc_context.finish_connections())
 
     # teardown server
-    server.close()
-    loop.run_until_complete(server.wait_closed())
-    loop.run_until_complete(app.shutdown())
-    loop.run_until_complete(handler.finish_connections(1))
-    loop.run_until_complete(app.cleanup())
+    async def teardown_server():
+        try:
+            server.close()
+            await server.wait_closed()
+            await app.shutdown()
+            await handler.shutdown(60.0)
+
+        finally:
+            await app.cleanup()
+
+    loop.run_until_complete(teardown_server())
 
 
 @pytest.yield_fixture
