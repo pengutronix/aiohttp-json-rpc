@@ -1,7 +1,12 @@
 from collections import namedtuple
 import json
 
-from .exceptions import RpcError, RpcParseError, RpcInvalidRequestError
+from .exceptions import (
+    error_code_to_exception,
+    RpcInvalidRequestError,
+    RpcParseError,
+    RpcError
+)
 
 JSONRPC = '2.0'
 JsonRpcMsg = namedtuple('JsonRpcMsg', ['type', 'data'])
@@ -176,3 +181,14 @@ def encode_error(error, id=None):
         msg['error']['data'] = error.data
 
     return json.dumps(msg)
+
+
+def decode_error(msg: JsonRpcMsg):
+    error_code = msg.data['error']['code']
+
+    exception = error_code_to_exception(error_code)
+
+    return exception(
+        msg_id=msg.data.get('id', None),
+        data=msg.data
+    )
