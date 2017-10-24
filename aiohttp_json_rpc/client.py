@@ -3,12 +3,13 @@ import aiohttp
 import asyncio
 import logging
 
-from .exceptions import RpcMethodNotFoundError
+from . import exceptions
 
 from .protocol import (
     JsonRpcMsgTyp,
     encode_request,
     encode_error,
+    decode_error,
     encode_result,
     decode_msg,
 )
@@ -42,7 +43,8 @@ class JsonRpcClient(object):
     async def _handle_request(self, msg):
         if not msg.data['method'] in self._methods:
             response = encode_error(
-                RpcMethodNotFoundError(msg_id=msg.data.get('id', None)))
+                exceptions.RpcMethodNotFoundError(
+                    msg_id=msg.data.get('id', None)))
 
         else:
             result = await self._methods[msg.data['method']](
@@ -83,6 +85,13 @@ class JsonRpcClient(object):
                     if msg.data['id'] in self._pending:
                         self._pending[msg.data['id']].set_result(
                             msg.data['result'])
+
+                # errors
+                elif msg.type == JsonRpcMsgTyp.ERROR:
+                    if msg.data['id'] in self._pending:
+                        self._pending[msg.data['id']].set_exception(
+                            decode_error(msg)
+                        )
 
             except Exception as e:
                 self._logger.error(e, exc_info=True)
