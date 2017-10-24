@@ -17,7 +17,7 @@ try:
 
     DJANGO = True
 
-except:
+except Exception:
     DJANGO = False
 
 __all__ = [

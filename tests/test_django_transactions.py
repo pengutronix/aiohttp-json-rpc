@@ -78,7 +78,7 @@ async def add(request):
         client_id = request.params['client_id']
         numbers = request.params['numbers']
 
-    except:
+    except KeyError:
         raise RpcInvalidParamsError
 
     try:
