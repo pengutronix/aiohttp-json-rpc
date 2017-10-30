@@ -74,8 +74,8 @@ The following code implements a simple RPC server that serves the method ``ping`
       loop.run_forever()
 
 
-Client
-~~~~~~
+Client (JS)
+~~~~~~~~~~~
 
 The following code implements a simple RPC client that connects to the server above
 and prints all incoming messages to the console.
@@ -114,6 +114,28 @@ These are example responses the server would give if you call ``ws_call_method``
   --> ws_call_method("ping")
   <-- {"jsonrpc": "2.0", "method": "ping", "params": "pong", "id": 2}
 
+Client (Python)
+~~~~~~~~~~~~~~~
+
+There's also Python client, which can be used as follows:
+
+.. code-block:: python
+
+  from aiohttp_json_rpc import JsonRpcClient
+
+
+  async def ping_json_rpc():
+      """Connect to ws://localhost:8080/rpc, call ping() and disconnect."""
+      rpc_client = JsonRpcClient()
+      try:
+          await rpc_client.connect('localhost', 8080, '/rpc')
+          call_result = await rpc_client.call('ping')
+          print(call_result)  # prints 'pong' (if that's return val of ping)
+      finally:
+          await rpc_client.disconnect()
+
+
+  asyncio.get_event_loop().run_until_complete(ping_json_rpc())
 
 Features
 --------
