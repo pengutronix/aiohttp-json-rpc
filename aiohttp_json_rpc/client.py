@@ -98,8 +98,7 @@ class JsonRpcClient:
 
         self._logger.debug('#%s: worker stopped', self._id)
 
-    async def connect(self, host, port, url='/', protocol='ws', cookies=None):
-        fqdn = '{}://{}:{}{}'.format(protocol, host, port, url)
+    async def connect_fqdn(self, fqdn, cookies=None):
         self._session = aiohttp.ClientSession(cookies=cookies)
 
         self._logger.debug('#%s: ws connect...', self._id)
@@ -107,6 +106,10 @@ class JsonRpcClient:
         self._logger.debug('#%s: ws connected', self._id)
 
         self._message_worker = asyncio.ensure_future(self._handle_msgs())
+
+    async def connect(self, host, port, url='/', protocol='ws', cookies=None):
+        fqdn = '{}://{}:{}{}'.format(protocol, host, port, url)
+        await self.connect_fqdn(fqdn, cookies=cookies)
 
     async def disconnect(self):
         await self._ws.close()
