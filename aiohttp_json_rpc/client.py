@@ -18,7 +18,7 @@ from .protocol import (
 default_logger = logging.getLogger('aiohttp-json-rpc.client')
 
 
-class JsonRpcClient(object):
+class JsonRpcClient:
     _client_id = 0
 
     def __init__(self, logger=default_logger):
