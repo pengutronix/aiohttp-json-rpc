@@ -21,12 +21,14 @@ default_logger = logging.getLogger('aiohttp-json-rpc.client')
 class JsonRpcClient:
     _client_id = 0
 
-    def __init__(self, logger=default_logger):
+    def __init__(self, logger=default_logger, url=None, cookies=None):
         self._pending = {}
         self._msg_id = 0
         self._logger = logger
         self._handler = {}
         self._methods = {}
+        self._autoconnect_url = url
+        self._autoconnect_cookies = cookies
 
         self._id = JsonRpcClient._client_id
         JsonRpcClient._client_id += 1
@@ -98,24 +100,41 @@ class JsonRpcClient:
 
         self._logger.debug('#%s: worker stopped', self._id)
 
-    async def connect_fqdn(self, fqdn, cookies=None):
+    async def connect_url(self, url, cookies=None):
         self._session = aiohttp.ClientSession(cookies=cookies)
 
         self._logger.debug('#%s: ws connect...', self._id)
-        self._ws = await self._session.ws_connect(fqdn)
+        self._ws = await self._session.ws_connect(url)
         self._logger.debug('#%s: ws connected', self._id)
 
         self._message_worker = asyncio.ensure_future(self._handle_msgs())
 
     async def connect(self, host, port, url='/', protocol='ws', cookies=None):
-        fqdn = '{}://{}:{}{}'.format(protocol, host, port, url)
-        await self.connect_fqdn(fqdn, cookies=cookies)
+        url = '{}://{}:{}{}'.format(protocol, host, port, url)
+        await self.connect_url(url, cookies=cookies)
+
+    async def auto_connect(self):
+        if self._autoconnect_url is None:
+            return
+
+        try:
+            self._ws
+            return
+        except AttributeError:
+            await self.connect_url(
+                url=self._autoconnect_url,
+                cookies=self._autoconnect_cookies,
+            )
 
     async def disconnect(self):
         await self._ws.close()
         await self._session.close()
+        del self._ws
+        del self._session
 
     async def call(self, method, params=None, id=None, timeout=None):
+        await self.auto_connect()
+
         if not id:
             id = self._msg_id
             self._msg_id += 1
