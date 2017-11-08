@@ -254,6 +254,72 @@ class JsonRpcMethod:
         return self.__class__(self._rpc_client, self._rpc_method, args, kwargs)
 
 
+class RawJsonRpcMethod(JsonRpcMethod):
+    """JSON-RPC awaitable method representation with call() args bypassing.
+
+    Example usage:
+
+    >>> import asyncio
+    >>> from .rpc import JsonRpc
+    >>> from .pytest import gen_rpc_context
+    >>> event_loop = asyncio.get_event_loop()
+    >>> rpc = JsonRpc()
+    >>> rpc_context_gen = gen_rpc_context(event_loop, 'localhost', 8000,
+    ...                                   rpc, ('*', '/rpc', rpc))
+    >>> rpc_context = next(rpc_context_gen)
+    >>> async def method1(request):
+    ...     return 'res1'
+    >>> async def method2(request):
+    ...     return ('res2 | args: {args} | kwargs: {kwargs}'.
+    ...             format(**request.params))
+    >>> rpc_context.rpc.add_methods(
+    ...     ('', method1),
+    ...     ('', method2),
+    ... )
+    >>> async def jrpc_method_coro():
+    ...     jrpc = JsonRpcClient()
+    ...     await jrpc.connect_url('ws://localhost:8000/rpc')
+    ...     rpc_method1 = RawJsonRpcMethod(jrpc, 'method1')
+    ...     print(await rpc_method1(id=3))
+    ...     rpc_method2 = RawJsonRpcMethod(jrpc, 'method2')
+    ...     print(
+    ...         await rpc_method2(
+    ...             params={
+    ...                 'args': ['arg1'],
+    ...                 'kwargs': {'key': 'arg2'},
+    ...             },
+    ...             timeout=60.0
+    ...         )
+    ...     )
+    ...     await jrpc.disconnect()
+    >>> event_loop.run_until_complete(jrpc_method_coro())
+    res1
+    res2 | args: ['arg1'] | kwargs: {'key': 'arg2'}
+    >>> try:
+    ...     next(rpc_context_gen)  # clean-up
+    ... except StopIteration:
+    ...     pass
+    """
+
+    @property
+    def _await_args(self):
+        return self._args
+
+    @property
+    def _await_kwargs(self):
+        return self._kwargs
+
+    def __call__(self, params=None, id=None, timeout=None):
+        return self.__class__(
+            self._rpc_client, self._rpc_method,
+            kwargs={
+                'params': params,
+                'id': id,
+                'timeout': timeout,
+            },
+        )
+
+
 class JsonRpcClientContext:
     """JSON-RPC connection asynchronous context manager.
 
