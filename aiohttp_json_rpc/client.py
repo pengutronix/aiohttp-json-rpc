@@ -209,14 +209,7 @@ class JsonRpcMethod:
     ...     print(await rpc_method1)
     ...     print(await rpc_method1())
     ...     rpc_method2 = JsonRpcMethod(jrpc, 'method2')
-    ...     print(
-    ...         await rpc_method2(
-    ...             params={
-    ...                 'args': ['arg1'],
-    ...                 'kwargs': {'key': 'arg2'},
-    ...             }
-    ...         )
-    ...     )
+    ...     print(await rpc_method2('arg1', key='arg2'))
     ...     await jrpc.disconnect()
     >>> event_loop.run_until_complete(jrpc_method_coro())
     res1
@@ -234,11 +227,27 @@ class JsonRpcMethod:
         self._args = args if args is not None else []
         self._kwargs = kwargs if kwargs is not None else {}
 
+    @property
+    def _await_args(self):
+        return []
+
+    @property
+    def _await_kwargs(self):
+        return {
+            'params': {
+                'args': self._args,
+                'kwargs': self._kwargs
+            }
+        }
+
     def __await__(self):
         return (
             self._rpc_client.
-            call(self._rpc_method, *self._args, **self._kwargs).
-            __await__()
+            call(
+                self._rpc_method,
+                *self._await_args,
+                **self._await_kwargs,
+            ).__await__()
         )
 
     def __call__(self, *args, **kwargs):
@@ -273,14 +282,7 @@ class JsonRpcClientContext:
     ...     async with JsonRpcClientContext(jrpc_url) as jrpc:
     ...         print(await jrpc.method1)
     ...         print(await jrpc.method1())
-    ...         print(
-    ...             await jrpc.method2(
-    ...                 params={
-    ...                     'args': ['arg1'],
-    ...                     'kwargs': {'key': 'arg2'},
-    ...                 }
-    ...             )
-    ...         )
+    ...         print(await jrpc.method2('arg1', key='arg2'))
     >>> event_loop.run_until_complete(jrpc_coro())
     res1
     res1
