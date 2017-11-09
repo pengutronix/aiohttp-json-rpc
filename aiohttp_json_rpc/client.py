@@ -1,7 +1,9 @@
-from aiohttp import web
 import aiohttp
 import asyncio
 import logging
+
+from aiohttp import web
+from yarl import URL
 
 from . import exceptions
 
@@ -27,7 +29,7 @@ class JsonRpcClient:
         self._logger = logger
         self._handler = {}
         self._methods = {}
-        self._autoconnect_url = url
+        self._autoconnect_url = URL(url) if url is not None else url
         self._autoconnect_cookies = cookies
 
         self._id = JsonRpcClient._client_id
@@ -101,6 +103,7 @@ class JsonRpcClient:
         self._logger.debug('#%s: worker stopped', self._id)
 
     async def connect_url(self, url, cookies=None):
+        url = URL(url)
         self._session = aiohttp.ClientSession(cookies=cookies)
 
         self._logger.debug('#%s: ws connect...', self._id)
@@ -110,7 +113,7 @@ class JsonRpcClient:
         self._message_worker = asyncio.ensure_future(self._handle_msgs())
 
     async def connect(self, host, port, url='/', protocol='ws', cookies=None):
-        url = '{}://{}:{}{}'.format(protocol, host, port, url)
+        url = URL.build(scheme=protocol, host=host, port=port, path=url)
         await self.connect_url(url, cookies=cookies)
 
     async def auto_connect(self):
