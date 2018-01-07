@@ -1,5 +1,7 @@
 import pytest
 
+from aiohttp_json_rpc import rpc
+
 
 @pytest.mark.asyncio
 async def test_get_methods(rpc_context):
@@ -80,3 +82,33 @@ async def test_call_method(rpc_context):
     client = await rpc_context.make_client()
 
     assert await client.call('add', [1, 2]) == 3
+
+
+@pytest.mark.asyncio
+async def test_call_method_and_unpack_args(rpc_context):
+    @rpc.unpack_request_args
+    async def add_extra(arg1, arg2, extra):
+        return str(arg1 + arg2) + ' ' + extra
+
+    @rpc.unpack_request_args
+    async def ping():
+        return 'pong'
+
+    rpc_context.rpc.add_methods(
+        ('', add_extra),
+        ('', ping),
+    )
+
+    client = await rpc_context.make_client()
+
+    actual = await client.call(
+        'add_extra',
+        params={
+            'args': [1, 2],
+            'kwargs': {'extra': 'val'}
+        }
+    )
+    expected = '3 val'
+    assert actual == expected
+
+    assert await client.call('ping') == 'pong'

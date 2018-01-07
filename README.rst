@@ -137,6 +137,24 @@ There's also Python client, which can be used as follows:
 
   asyncio.get_event_loop().run_until_complete(ping_json_rpc())
 
+Or use asynchronous context manager interface:
+
+.. code-block:: python
+
+  from aiohttp_json_rpc import JsonRpcClientContext
+  
+  
+  async def jrpc_coro():
+      async with JsonRpcClientContext('ws://localhost:8000/rpc') as jrpc:
+          # `some_other_method` will get request.params filled with `args` and
+          # `kwargs` keys:
+          method_res = await jrpc.some_other_method('arg1', key='arg2')
+  
+      return method_res
+  
+  asyncio.get_event_loop().run_until_complete(jrpc_coro())
+
+
 Features
 --------
 

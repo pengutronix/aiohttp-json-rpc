@@ -32,3 +32,9 @@ install:
 
 script:
 - tox
+
+after_failure:
+- ip a
+- ping -c 1 localhost
+- ping -c 1 localhost
+- sysctl -a

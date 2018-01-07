@@ -1,7 +1,9 @@
-from aiohttp import web
 import aiohttp
 import asyncio
 import logging
+
+from aiohttp import web
+from yarl import URL
 
 from . import exceptions
 
@@ -18,15 +20,17 @@ from .protocol import (
 default_logger = logging.getLogger('aiohttp-json-rpc.client')
 
 
-class JsonRpcClient(object):
+class JsonRpcClient:
     _client_id = 0
 
-    def __init__(self, logger=default_logger):
+    def __init__(self, logger=default_logger, url=None, cookies=None):
         self._pending = {}
         self._msg_id = 0
         self._logger = logger
         self._handler = {}
         self._methods = {}
+        self._autoconnect_url = URL(url) if url is not None else url
+        self._autoconnect_cookies = cookies
 
         self._id = JsonRpcClient._client_id
         JsonRpcClient._client_id += 1
@@ -98,21 +102,42 @@ class JsonRpcClient(object):
 
         self._logger.debug('#%s: worker stopped', self._id)
 
-    async def connect(self, host, port, url='/', protocol='ws', cookies=None):
-        fqdn = '{}://{}:{}{}'.format(protocol, host, port, url)
+    async def connect_url(self, url, cookies=None):
+        url = URL(url)
         self._session = aiohttp.ClientSession(cookies=cookies)
 
         self._logger.debug('#%s: ws connect...', self._id)
-        self._ws = await self._session.ws_connect(fqdn)
+        self._ws = await self._session.ws_connect(url)
         self._logger.debug('#%s: ws connected', self._id)
 
         self._message_worker = asyncio.ensure_future(self._handle_msgs())
 
+    async def connect(self, host, port, url='/', protocol='ws', cookies=None):
+        url = URL.build(scheme=protocol, host=host, port=port, path=url)
+        await self.connect_url(url, cookies=cookies)
+
+    async def auto_connect(self):
+        if self._autoconnect_url is None:
+            return
+
+        try:
+            self._ws
+            return
+        except AttributeError:
+            await self.connect_url(
+                url=self._autoconnect_url,
+                cookies=self._autoconnect_cookies,
+            )
+
     async def disconnect(self):
         await self._ws.close()
         await self._session.close()
+        del self._ws
+        del self._session
 
     async def call(self, method, params=None, id=None, timeout=None):
+        await self.auto_connect()
+
         if not id:
             id = self._msg_id
             self._msg_id += 1
@@ -153,3 +178,202 @@ class JsonRpcClient(object):
             del self._handler[topic]
 
         return await self.call('unsubscribe', params=topic, timeout=timeout)
+
+
+class JsonRpcMethod:
+    """JSON-RPC callable awaitable method representation.
+
+    Example usage:
+
+    >>> import asyncio
+    >>> from .rpc import JsonRpc
+    >>> from .pytest import gen_rpc_context
+    >>> event_loop = asyncio.get_event_loop()
+    >>> rpc = JsonRpc()
+    >>> rpc_context_gen = gen_rpc_context(event_loop, 'localhost', 8000,
+    ...                                   rpc, ('*', '/rpc', rpc))
+    >>> rpc_context = next(rpc_context_gen)
+    >>> async def method1(request):
+    ...     return 'res1'
+    >>> async def method2(request):
+    ...     return ('res2 | args: {args} | kwargs: {kwargs}'.
+    ...             format(**request.params))
+    >>> rpc_context.rpc.add_methods(
+    ...     ('', method1),
+    ...     ('', method2),
+    ... )
+    >>> async def jrpc_method_coro():
+    ...     jrpc = JsonRpcClient()
+    ...     await jrpc.connect_url('ws://localhost:8000/rpc')
+    ...     rpc_method1 = JsonRpcMethod(jrpc, 'method1')
+    ...     print(await rpc_method1)
+    ...     print(await rpc_method1())
+    ...     rpc_method2 = JsonRpcMethod(jrpc, 'method2')
+    ...     print(await rpc_method2('arg1', key='arg2'))
+    ...     await jrpc.disconnect()
+    >>> event_loop.run_until_complete(jrpc_method_coro())
+    res1
+    res1
+    res2 | args: ['arg1'] | kwargs: {'key': 'arg2'}
+    >>> try:
+    ...     next(rpc_context_gen)  # clean-up
+    ... except StopIteration:
+    ...     pass
+    """
+
+    def __init__(self, rpc_client, rpc_method, args=None, kwargs=None):
+        self._rpc_client = rpc_client
+        self._rpc_method = rpc_method
+        self._args = args if args is not None else []
+        self._kwargs = kwargs if kwargs is not None else {}
+
+    @property
+    def _await_args(self):
+        return []
+
+    @property
+    def _await_kwargs(self):
+        return {
+            'params': {
+                'args': self._args,
+                'kwargs': self._kwargs
+            }
+        }
+
+    def __await__(self):
+        return (
+            self._rpc_client.
+            call(
+                self._rpc_method,
+                *self._await_args,
+                **self._await_kwargs,
+            ).__await__()
+        )
+
+    def __call__(self, *args, **kwargs):
+        return self.__class__(self._rpc_client, self._rpc_method, args, kwargs)
+
+
+class RawJsonRpcMethod(JsonRpcMethod):
+    """JSON-RPC awaitable method representation with call() args bypassing.
+
+    Example usage:
+
+    >>> import asyncio
+    >>> from .rpc import JsonRpc
+    >>> from .pytest import gen_rpc_context
+    >>> event_loop = asyncio.get_event_loop()
+    >>> rpc = JsonRpc()
+    >>> rpc_context_gen = gen_rpc_context(event_loop, 'localhost', 8000,
+    ...                                   rpc, ('*', '/rpc', rpc))
+    >>> rpc_context = next(rpc_context_gen)
+    >>> async def method1(request):
+    ...     return 'res1'
+    >>> async def method2(request):
+    ...     return ('res2 | args: {args} | kwargs: {kwargs}'.
+    ...             format(**request.params))
+    >>> rpc_context.rpc.add_methods(
+    ...     ('', method1),
+    ...     ('', method2),
+    ... )
+    >>> async def jrpc_method_coro():
+    ...     jrpc = JsonRpcClient()
+    ...     await jrpc.connect_url('ws://localhost:8000/rpc')
+    ...     rpc_method1 = RawJsonRpcMethod(jrpc, 'method1')
+    ...     print(await rpc_method1(id=3))
+    ...     rpc_method2 = RawJsonRpcMethod(jrpc, 'method2')
+    ...     print(
+    ...         await rpc_method2(
+    ...             params={
+    ...                 'args': ['arg1'],
+    ...                 'kwargs': {'key': 'arg2'},
+    ...             },
+    ...             timeout=60.0
+    ...         )
+    ...     )
+    ...     await jrpc.disconnect()
+    >>> event_loop.run_until_complete(jrpc_method_coro())
+    res1
+    res2 | args: ['arg1'] | kwargs: {'key': 'arg2'}
+    >>> try:
+    ...     next(rpc_context_gen)  # clean-up
+    ... except StopIteration:
+    ...     pass
+    """
+
+    @property
+    def _await_args(self):
+        return self._args
+
+    @property
+    def _await_kwargs(self):
+        return self._kwargs
+
+    def __call__(self, params=None, id=None, timeout=None):
+        return self.__class__(
+            self._rpc_client, self._rpc_method,
+            kwargs={
+                'params': params,
+                'id': id,
+                'timeout': timeout,
+            },
+        )
+
+
+class JsonRpcClientContext:
+    """JSON-RPC connection asynchronous context manager.
+
+    Example usage:
+
+    >>> import asyncio
+    >>> from yarl import URL
+    >>> from .rpc import JsonRpc
+    >>> from .pytest import gen_rpc_context
+    >>> event_loop = asyncio.get_event_loop()
+    >>> rpc = JsonRpc()
+    >>> rpc_context_gen = gen_rpc_context(event_loop, 'localhost', 8000,
+    ...                                   rpc, ('*', '/rpc', rpc))
+    >>> rpc_context = next(rpc_context_gen)
+    >>> async def method1(request):
+    ...     return 'res1'
+    >>> async def method2(request):
+    ...     return ('res2 | args: {args} | kwargs: {kwargs}'.
+    ...             format(**request.params))
+    >>> rpc_context.rpc.add_methods(
+    ...     ('', method1),
+    ...     ('', method2),
+    ... )
+    >>> async def jrpc_coro():
+    ...     jrpc_url = URL('ws://localhost:8000/rpc')
+    ...     async with JsonRpcClientContext(jrpc_url) as jrpc:
+    ...         print(await jrpc.method1)
+    ...         print(await jrpc.method1())
+    ...         print(await jrpc.method2('arg1', key='arg2'))
+    >>> event_loop.run_until_complete(jrpc_coro())
+    res1
+    res1
+    res2 | args: ['arg1'] | kwargs: {'key': 'arg2'}
+    >>> try:
+    ...     next(rpc_context_gen)  # clean-up
+    ... except StopIteration:
+    ...     pass
+    """
+
+    def __init__(self, rpc_url, rpc_cookies=None):
+        self._rpc_client = JsonRpcClient()
+        self._rpc_url = rpc_url
+        self._rpc_cookies = rpc_cookies
+
+    def __getattr__(self, rpc_name):
+        return JsonRpcMethod(self._rpc_client, rpc_name)
+
+    async def __aenter__(self):
+        await self._rpc_client.connect_url(
+            url=self._rpc_url,
+            cookies=self._rpc_cookies,
+        )
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self._rpc_client.disconnect()
+        return False
