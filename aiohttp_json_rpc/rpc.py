@@ -180,7 +180,8 @@ class JsonRpc(object):
             except (RpcInvalidParamsError,
                     RpcInvalidRequestError) as error:
 
-                http_request.ws.send_str(encode_error(error))
+                http_request.ws.send_str(
+                    encode_error(error, id=msg.data.get('id', None)))
 
             except Exception as error:
                 logging.error(error, exc_info=True)
