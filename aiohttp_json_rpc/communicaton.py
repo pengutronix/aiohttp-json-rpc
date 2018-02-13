@@ -61,7 +61,7 @@ class JsonRpcRequest:
 
         request = encode_request(method, id=msg_id, params=params)
 
-        self.http_request.ws.send_str(request)
+        await self.http_request.ws.send_str(request)
 
         if timeout:
             await asyncio.wait_for(self.http_request.pending[msg_id],

@@ -57,7 +57,7 @@ class JsonRpcClient:
             response = encode_result(msg.data['id'], result)
 
         self._logger.debug('#%s: > %s', self._id, response)
-        self._ws.send_str(response)
+        await self._ws.send_str(response)
 
     async def _handle_msgs(self):
         self._logger.debug('#%s: worker start...', self._id)
@@ -68,7 +68,7 @@ class JsonRpcClient:
 
                 self._logger.debug('#%s: < %s', self._id, raw_msg.data)
 
-                if raw_msg.type != web.MsgType.text:
+                if raw_msg.type != aiohttp.WSMsgType.text:
                     continue
 
                 msg = decode_msg(raw_msg.data)
@@ -146,7 +146,7 @@ class JsonRpcClient:
         msg = encode_request(method, id=id, params=params)
 
         self._logger.debug('#%s: > %s', self._id, msg)
-        self._ws.send_str(msg)
+        await self._ws.send_str(msg)
 
         if timeout:
             await asyncio.wait_for(self._pending[id], timeout=timeout)

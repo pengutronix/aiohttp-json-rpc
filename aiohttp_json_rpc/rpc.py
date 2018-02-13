@@ -145,7 +145,7 @@ class JsonRpc(object):
             self.logger.debug('message decoded: %s', msg)
 
         except RpcError as error:
-            http_request.ws.send_str(encode_error(error))
+            await http_request.ws.send_str(encode_error(error))
 
             return
 
@@ -158,7 +158,7 @@ class JsonRpc(object):
                 self.logger.debug('method %s is unknown or restricted',
                                   msg.data['method'])
 
-                http_request.ws.send_str(encode_error(
+                await http_request.ws.send_str(encode_error(
                     RpcMethodNotFoundError(msg_id=msg.data.get('id', None))
                 ))
 
@@ -175,18 +175,18 @@ class JsonRpc(object):
                 result = await http_request.methods[msg.data['method']](
                     json_rpc_request)
 
-                http_request.ws.send_str(encode_result(msg.data['id'], result))
+                await http_request.ws.send_str(encode_result(msg.data['id'], result))
 
             except (RpcInvalidParamsError,
                     RpcInvalidRequestError) as error:
 
-                http_request.ws.send_str(
+                await http_request.ws.send_str(
                     encode_error(error, id=msg.data.get('id', None)))
 
             except Exception as error:
                 logging.error(error, exc_info=True)
 
-                http_request.ws.send_str(encode_error(
+                await http_request.ws.send_str(encode_error(
                     RpcInternalError(msg_id=msg.data.get('id', None))
                 ))
 
@@ -200,7 +200,7 @@ class JsonRpc(object):
         else:
             self.logger.debug('unsupported msg type (%s)', msg.type)
 
-            http_request.ws.send_str(encode_error(
+            await http_request.ws.send_str(encode_error(
                 RpcInvalidRequestError(msg_id=msg.data.get('id', None))
             ))
 
@@ -220,7 +220,7 @@ class JsonRpc(object):
             self.logger.debug('waiting for messages')
             raw_msg = await ws.receive()
 
-            if not raw_msg.tp == aiohttp.WSMsgType.TEXT:
+            if not raw_msg.type == aiohttp.WSMsgType.TEXT:
                 continue
 
             self.logger.debug('raw msg received: %s', raw_msg.data)

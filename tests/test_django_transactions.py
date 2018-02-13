@@ -1,4 +1,5 @@
-from aiohttp.web import Application, MsgType
+from aiohttp import WSMsgType
+from aiohttp.web import Application
 from aiohttp_json_rpc import JsonRpc, RpcInvalidParamsError
 import aiohttp
 import asyncio
@@ -54,7 +55,7 @@ async def client(id, url, numbers, sleep=0):
 
         try:
             async for msg in ws:
-                if msg.type == MsgType.text:
+                if msg.type == WSMsgType.text:
                     logger.debug('Client #{}: < {}'.format(id, msg.data))
                     msg_data = json.loads(msg.data)
 
