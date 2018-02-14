@@ -5,7 +5,6 @@ import importlib
 import logging
 
 from .protocol import JsonRpcMsgTyp, decode_msg, encode_result, encode_error
-from .websocket import JsonWebSocketResponse
 from .communicaton import JsonRpcRequest
 from .auth import DummyAuthBackend
 
@@ -211,7 +210,7 @@ class JsonRpc(object):
         http_request.pending = {}
 
         # prepare and register websocket
-        ws = JsonWebSocketResponse()
+        ws = aiohttp.web_ws.WebSocketResponse()
         await ws.prepare(http_request)
         http_request.ws = ws
         self.clients.append(http_request)
