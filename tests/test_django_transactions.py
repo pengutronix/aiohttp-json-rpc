@@ -51,7 +51,7 @@ async def client(id, url, numbers, sleep=0):
         })
 
         logger.debug('Client #{}: > {}'.format(id, msg))
-        ws.send_str(msg)
+        await ws.send_str(msg)
 
         try:
             async for msg in ws:
