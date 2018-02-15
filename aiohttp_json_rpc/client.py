@@ -2,7 +2,6 @@ import aiohttp
 import asyncio
 import logging
 
-from aiohttp import web
 from yarl import URL
 
 from . import exceptions
