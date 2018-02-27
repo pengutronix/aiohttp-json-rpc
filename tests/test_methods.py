@@ -94,9 +94,15 @@ async def test_call_method_and_unpack_args(rpc_context, caplog):
     async def ping():
         return 'pong'
 
+    class ClsBasedViews:
+        @rpc.unpack_request_args
+        async def add_extra_in_cls(self, arg1, arg2, extra):
+            return str(arg1 + arg2) + ' ' + extra
+
     rpc_context.rpc.add_methods(
         ('', add_extra),
         ('', ping),
+        ('', ClsBasedViews()),
     )
 
     client = await rpc_context.make_client()
@@ -112,3 +118,13 @@ async def test_call_method_and_unpack_args(rpc_context, caplog):
     assert actual == expected
 
     assert await client.call('ping') == 'pong'
+
+    actual = await client.call(
+        'add_extra_in_cls',
+        params={
+            'args': [1, 2],
+            'kwargs': {'extra': 'val'}
+        }
+    )
+    expected = '3 val'
+    assert actual == expected
