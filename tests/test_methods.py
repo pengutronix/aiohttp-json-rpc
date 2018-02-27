@@ -85,7 +85,7 @@ async def test_call_method(rpc_context):
 
 
 @pytest.mark.asyncio
-async def test_call_method_and_unpack_args(rpc_context):
+async def test_call_method_and_unpack_args(rpc_context, caplog):
     @rpc.unpack_request_args
     async def add_extra(arg1, arg2, extra):
         return str(arg1 + arg2) + ' ' + extra
