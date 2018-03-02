@@ -358,15 +358,21 @@ class JsonRpcClientContext:
     ...     pass
     """
 
-    def __init__(self, rpc_url, rpc_cookies=None):
+    def __init__(self, rpc_url, test_client=None, build_application=None, rpc_cookies=None):
         self._rpc_client = JsonRpcClient()
         self._rpc_url = rpc_url
         self._rpc_cookies = rpc_cookies
+        self._test_client = test_client
+        self._build_application = build_application
 
     def __getattr__(self, rpc_name):
         return JsonRpcMethod(self._rpc_client, rpc_name)
 
     async def __aenter__(self):
+        if self._testing_client:
+            test_server = await self._test_client(await self._build_application())
+            self._rpc_url = URL(f'ws://{test_server.host}:{test_server.port}{self._rpc_url}')
+
         await self._rpc_client.connect_url(
             url=self._rpc_url,
             cookies=self._rpc_cookies,
