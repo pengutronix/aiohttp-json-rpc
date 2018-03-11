@@ -9,6 +9,7 @@ from .communicaton import JsonRpcRequest
 from .auth import DummyAuthBackend
 
 from .exceptions import (
+    RpcGenericServerDefinedError,
     RpcInvalidRequestError,
     RpcMethodNotFoundError,
     RpcInvalidParamsError,
@@ -181,8 +182,9 @@ class JsonRpc(object):
 
                 await http_request.ws.send_str(result)
 
-            except (RpcInvalidParamsError,
-                    RpcInvalidRequestError) as error:
+            except (RpcGenericServerDefinedError,
+                    RpcInvalidRequestError,
+                    RpcInvalidParamsError) as error:
 
                 await http_request.ws.send_str(
                     encode_error(error, id=msg.data.get('id', None)))

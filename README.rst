@@ -165,6 +165,9 @@ All errors specified in the `error specification <http://www.jsonrpc.org/specifi
 
 If your coroutine got called with wrong params you can raise an ``aiohttp_json_rpc.RpcInvalidParamsError`` instead of sending an error by yourself.
 
+The JSONRPC protocol defines a range for server defined errors.
+``aiohttp_json_rpc.RpcGenericServerDefinedError`` implements this feature.
+
 .. code-block:: python
 
   from aiohttp_json_rpc import RpcInvalidParamsError
@@ -180,6 +183,14 @@ If your coroutine got called with wrong params you can raise an ``aiohttp_json_r
 
       except KeyError:
           raise RpcInvalidParamsError
+
+
+    @asyncio.coroutine
+    async def add(request):
+        raise RpcGenericServerDefinedError(
+            error_code=-32050,
+            message='Computer says no.',
+        )
 
 
 Error Logging

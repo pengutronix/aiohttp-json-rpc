@@ -120,6 +120,10 @@ def decode_msg(raw_msg):
         if not len(set(['code', 'message']) & set(msg_data['error'])) == 2:
             raise RpcInvalidRequestError(msg_id=msg_data.get('id', None))
 
+        # the error code has to be in the specified ranges
+        if not msg_data['error']['code'] in RpcError.lookup_table.keys():
+            raise RpcInvalidRequestError(msg_id=msg_data.get('id', None))
+
         # set empty 'data' field if not set
         if 'data' not in msg_data['error']:
             msg_data['error']['data'] = None
@@ -166,8 +170,8 @@ def encode_error(error, id=None):
     msg = {
         'jsonrpc': JSONRPC,
         'error': {
-            'code': error.ERROR_CODE,
-            'message': error.MESSAGE,
+            'code': error.error_code,
+            'message': error.message,
         }
     }
 
@@ -190,5 +194,7 @@ def decode_error(msg: JsonRpcMsg):
 
     return exception(
         msg_id=msg.data.get('id', None),
-        data=msg.data
+        data=msg.data,
+        error_code=error_code,
+        message=msg.data['error'].get('message', ''),
     )
