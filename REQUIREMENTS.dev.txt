@@ -1,0 +1,4 @@
+-e .
+flake8
+ipython
+pytest
