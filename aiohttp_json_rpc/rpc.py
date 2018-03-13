@@ -174,8 +174,12 @@ class JsonRpc(object):
                 result = await http_request.methods[msg.data['method']](
                     json_rpc_request)
 
-                await http_request.ws.send_str(
-                    encode_result(msg.data['id'], result))
+                if not getattr(http_request.methods[msg.data['method']],
+                               'raw_response', False):
+
+                    result = encode_result(msg.data['id'], result)
+
+                await http_request.ws.send_str(result)
 
             except (RpcInvalidParamsError,
                     RpcInvalidRequestError) as error:
