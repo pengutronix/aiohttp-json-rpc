@@ -99,6 +99,9 @@ class JsonRpcClient:
                             decode_error(msg)
                         )
 
+            except asyncio.CancelledError:
+                raise
+
             except Exception as e:
                 self._logger.error(e, exc_info=True)
 
