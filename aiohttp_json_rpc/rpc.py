@@ -42,11 +42,11 @@ class JsonRpc(object):
             ('', self.unsubscribe),
         )
 
-    def _add_method(self, method, prefix=''):
+    def _add_method(self, method, name='', prefix=''):
         if not asyncio.iscoroutinefunction(method):
             return
 
-        name = method.__name__
+        name = name or method.__name__
 
         if prefix:
             name = '{}__{}'.format(prefix, name)
@@ -83,7 +83,8 @@ class JsonRpc(object):
             method = arg[1]
 
             if asyncio.iscoroutinefunction(method):
-                self._add_method(method, prefix=prefix_)
+                name = arg[2] if len(arg) >= 3 else ''
+                self._add_method(method, name=name, prefix=prefix_)
 
             elif type(method) == str:
                 self._add_methods_by_name(method, prefix=prefix_)

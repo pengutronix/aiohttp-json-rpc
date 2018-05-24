@@ -128,3 +128,24 @@ async def test_call_method_and_unpack_args(rpc_context, caplog):
     )
     expected = '3 val'
     assert actual == expected
+
+
+@pytest.mark.asyncio
+async def test_method_names(rpc_context, caplog):
+    async def unnamed_method(request):
+        return request.msg.data['method']
+
+    rpc_context.rpc.add_methods(
+        ('', unnamed_method, 'method1'),
+        ('', unnamed_method, 'method2'),
+    )
+
+    client = await rpc_context.make_client()
+    methods = await client.call('get_methods')
+
+    assert 'unnamed_method' not in methods
+    assert 'method1' in methods
+    assert 'method2' in methods
+
+    assert await client.call('method1') == 'method1'
+    assert await client.call('method2') == 'method2'
