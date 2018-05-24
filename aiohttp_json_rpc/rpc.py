@@ -25,15 +25,8 @@ class JsonRpc(object):
         self.topics = {}
         self.state = {}
         self.logger = logger or logging.getLogger('aiohttp-json-rpc.server')
+        self.auth_backend = auth_backend or DummyAuthBackend()
 
-        # auth backend
-        if not auth_backend:
-            self.auth_backend = DummyAuthBackend()
-
-        else:
-            self.auth_backend = auth_backend
-
-        # methods
         self.add_methods(
             ('', self.get_methods),
             ('', self.get_topics),
