@@ -107,20 +107,19 @@ def rpc_context(event_loop, unused_tcp_port):
         yield context
 
 
-if DJANGO:
-    @pytest.yield_fixture
-    def django_rpc_context(db, event_loop, unused_tcp_port):
-        from aiohttp_json_rpc.auth.django import DjangoAuthBackend
-        from aiohttp_wsgi import WSGIHandler
+@pytest.yield_fixture
+def django_rpc_context(db, event_loop, unused_tcp_port):
+    from aiohttp_json_rpc.auth.django import DjangoAuthBackend
+    from aiohttp_wsgi import WSGIHandler
 
-        rpc = JsonRpc(auth_backend=DjangoAuthBackend())
-        rpc_route = ('*', '/rpc', rpc)
+    rpc = JsonRpc(auth_backend=DjangoAuthBackend())
+    rpc_route = ('*', '/rpc', rpc)
 
-        routes = [
-            ('*', '/{path_info:.*}', WSGIHandler(django_wsgi_application)),
-        ]
+    routes = [
+        ('*', '/{path_info:.*}', WSGIHandler(django_wsgi_application)),
+    ]
 
-        for context in gen_rpc_context(event_loop, 'localhost',
-                                       unused_tcp_port, rpc, rpc_route,
-                                       routes):
-            yield context
+    for context in gen_rpc_context(event_loop, 'localhost',
+                                   unused_tcp_port, rpc, rpc_route,
+                                   routes):
+        yield context
