@@ -1,7 +1,5 @@
 import pytest
 
-from aiohttp_json_rpc import rpc
-
 
 @pytest.mark.asyncio
 async def test_get_methods(rpc_context):
@@ -86,6 +84,8 @@ async def test_call_method(rpc_context):
 
 @pytest.mark.asyncio
 async def test_call_method_and_unpack_args(rpc_context, caplog):
+    from aiohttp_json_rpc import rpc
+
     @rpc.unpack_request_args
     async def add_extra(arg1, arg2, extra):
         return str(arg1 + arg2) + ' ' + extra
