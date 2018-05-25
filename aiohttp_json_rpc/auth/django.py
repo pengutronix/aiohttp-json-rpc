@@ -30,9 +30,9 @@ class DjangoAuthBackend(AuthBackend):
             return False
 
         # permission check
-        if hasattr(method, 'permissions_required') and\
-           not request.user.is_superuser and\
-           not request.user.has_perms(method.permissions_required):
+        if(hasattr(method, 'permissions_required') and
+           not request.user.is_superuser and
+           not request.user.has_perms(method.permissions_required)):
             return False
 
         # user tests
