@@ -112,7 +112,7 @@ def django_rpc_context(db, event_loop, unused_tcp_port):
     from aiohttp_json_rpc.auth.django import DjangoAuthBackend
     from aiohttp_wsgi import WSGIHandler
 
-    rpc = JsonRpc(auth_backend=DjangoAuthBackend())
+    rpc = JsonRpc(auth_backend=DjangoAuthBackend(generic_orm_methods=True))
     rpc_route = ('*', '/rpc', rpc)
 
     routes = [
@@ -123,3 +123,25 @@ def django_rpc_context(db, event_loop, unused_tcp_port):
                                    unused_tcp_port, rpc, rpc_route,
                                    routes):
         yield context
+
+
+@pytest.fixture
+def django_permissions(db):
+    from aiohttp_json_rpc.django import generate_view_permissions
+
+    generate_view_permissions()
+
+
+@pytest.fixture
+def django_staff_user(db):
+    from django.contrib.auth import get_user_model
+
+    user = get_user_model().objects.create(username='admin', is_active=True,
+                                           is_staff=True, is_superuser=True)
+
+    user.set_password('admin')
+    user.save()
+
+    user._password = 'admin'
+
+    return user

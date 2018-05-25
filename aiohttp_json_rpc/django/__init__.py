@@ -1,5 +1,6 @@
 import asyncio
 
+default_app_config = 'aiohttp_json_rpc.django.apps.AiohttpJsonRpcConfig'
 __already_patched = False
 
 
@@ -53,3 +54,16 @@ def patch_db_connections():
 
         connections._connections = local(connections._connections)
         __already_patched = True
+
+
+def generate_view_permissions():
+    from django.contrib.contenttypes.models import ContentType
+    from django.contrib.auth.models import Permission
+    from django.apps import apps
+
+    for model in apps.get_models():
+        Permission.objects.get_or_create(
+            codename='view_{}'.format(model._meta.model_name),
+            name='Can view {}'.format(model._meta.verbose_name),
+            content_type=ContentType.objects.get_for_model(model),
+        )

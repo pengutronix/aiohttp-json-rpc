@@ -20,3 +20,11 @@ edit: env
 shell: env
 	. $(PYTHON_VENV)/bin/activate && \
 	ipython
+
+django-migrate: env
+	. $(PYTHON_VENV)/bin/activate && \
+	DJANGO_SETTINGS_MODULE=django_project.settings django-admin migrate
+
+django-shell: env
+	. $(PYTHON_VENV)/bin/activate && \
+	DJANGO_SETTINGS_MODULE=django_project.settings django-admin shell

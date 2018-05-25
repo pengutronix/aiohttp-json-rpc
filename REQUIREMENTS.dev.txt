@@ -1,4 +1,6 @@
 -e .
+-e tests/django_project/
+django==1.11
 flake8
 ipython
 pytest

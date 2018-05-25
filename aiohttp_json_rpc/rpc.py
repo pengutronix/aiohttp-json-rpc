@@ -159,6 +159,9 @@ class JsonRpc(object):
                 return
 
             # call method
+            raw_response = getattr(http_request.methods[msg.data['method']],
+                                   'raw_response', False)
+
             try:
                 json_rpc_request = JsonRpcRequest(
                     http_request=http_request,
@@ -169,9 +172,7 @@ class JsonRpc(object):
                 result = await http_request.methods[msg.data['method']](
                     json_rpc_request)
 
-                if not getattr(http_request.methods[msg.data['method']],
-                               'raw_response', False):
-
+                if not raw_response:
                     result = encode_result(msg.data['id'], result)
 
                 await http_request.ws.send_str(result)
