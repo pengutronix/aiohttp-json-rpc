@@ -37,7 +37,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-#   'aiohttp_json_rpc.django',
+    # 'aiohttp_json_rpc.django',
     'django_project',
 )
 
