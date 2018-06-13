@@ -66,6 +66,7 @@ class JsonRpcClient:
 
         while not self._ws.closed:
             try:
+                self._logger.debug('#%s: waiting for messages', self._id)
                 raw_msg = await self._ws.receive()
 
                 self._logger.debug('#%s: < %s', self._id, raw_msg.data)
@@ -83,8 +84,15 @@ class JsonRpcClient:
 
                 # notifications
                 elif msg.type == JsonRpcMsgTyp.NOTIFICATION:
+                    self._logger.debug('#%s: handled as notification', self._id)  # NOQA
+
                     if msg.data['method'] in self._handler:
                         await self._handler[msg.data['method']](msg.data)
+
+                        self._logger.debug('#%s: handled', self._id)
+
+                    else:
+                        self._logger.debug('#%s: no handler found', self._id)
 
                 # results
                 elif msg.type == JsonRpcMsgTyp.RESULT:
