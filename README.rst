@@ -293,7 +293,7 @@ Methods
 
   Topics can be string or a list of strings.
 
-``def notify(self, topic, data)``
+``async def notify(self, topic, data)``
   Send RPC notification to all connected clients subscribed to given topic.
 
   Data has to be JSON serializable.

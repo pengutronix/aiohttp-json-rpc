@@ -4,9 +4,16 @@ import functools
 import importlib
 import logging
 
-from .protocol import JsonRpcMsgTyp, decode_msg, encode_result, encode_error
 from .communicaton import JsonRpcRequest
 from .auth import DummyAuthBackend
+
+from .protocol import (
+    encode_notification,
+    JsonRpcMsgTyp,
+    encode_result,
+    encode_error,
+    decode_msg,
+)
 
 from .exceptions import (
     RpcGenericServerDefinedError,
@@ -274,25 +281,27 @@ class JsonRpc(object):
         topics = set(topics)
 
         for client in self.clients:
-            if not client.ws:
+            if client.ws.closed:
                 continue
 
             if len(topics & client.subscriptions) > 0:
                 yield client
 
-    def notify(self, topic, data=None):
+    async def notify(self, topic, data=None):
         if type(topic) is not str:
             raise ValueError
 
         self.state[topic] = data
 
         for client in self.filter(topic):
-            if not client.ws.closed:
-                try:
-                    client.ws.send_notification(topic, data)
+            if client.ws.closed:
+                continue
 
-                except Exception as e:
-                    self.logger.exception(e)
+            try:
+                await client.ws.send_str(encode_notification(topic, data))
+
+            except Exception as e:
+                self.logger.exception(e)
 
 
 def unpack_request_args(original_rpc_method):

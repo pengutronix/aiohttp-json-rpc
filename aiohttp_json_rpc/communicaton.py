@@ -1,6 +1,6 @@
 import asyncio
 
-from .protocol import encode_request
+from .protocol import encode_request, encode_notification
 
 
 class JsonRpcRequest:
@@ -78,3 +78,6 @@ class JsonRpcRequest:
     async def confirm(self, message='', timeout=None):
         return await self.call('confirm', params={'message': message},
                                timeout=timeout)
+
+    async def send_notification(self, method, params=None):
+        await self.ws.send_str(encode_notification(method, params))
