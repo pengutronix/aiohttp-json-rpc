@@ -119,8 +119,7 @@ class JsonRpc(object):
 
             self.topics[name] = func
 
-    @asyncio.coroutine
-    def __call__(self, request):
+    async def __call__(self, request):
         # prepare request
         request.rpc = self
         self.auth_backend.prepare_request(request)
@@ -130,7 +129,7 @@ class JsonRpc(object):
 
             # handle Websocket
             if request.headers.get('upgrade', '').lower() == 'websocket':
-                return (yield from self.handle_websocket_request(request))
+                return (await self.handle_websocket_request(request))
 
             # handle GET
             else:
@@ -237,20 +236,16 @@ class JsonRpc(object):
         self.clients.remove(http_request)
         return ws
 
-    @asyncio.coroutine
-    def get_methods(self, request):
+    async def get_methods(self, request):
         return list(request.methods.keys())
 
-    @asyncio.coroutine
-    def get_topics(self, request):
+    async def get_topics(self, request):
         return list(request.topics)
 
-    @asyncio.coroutine
-    def get_subscriptions(self, request):
+    async def get_subscriptions(self, request):
         return list(request.subscriptions)
 
-    @asyncio.coroutine
-    def subscribe(self, request):
+    async def subscribe(self, request):
         if type(request.params) is not list:
             request.params = [request.params]
 
@@ -263,8 +258,7 @@ class JsonRpc(object):
 
         return list(request.subscriptions)
 
-    @asyncio.coroutine
-    def unsubscribe(self, request):
+    async def unsubscribe(self, request):
         if type(request.params) is not list:
             request.params = [request.params]
 

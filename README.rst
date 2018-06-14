@@ -50,8 +50,7 @@ The following code implements a simple RPC server that serves the method ``ping`
   import asyncio
 
 
-  @asyncio.coroutine
-  def ping(request):
+  async def ping(request):
       return 'pong'
 
 
@@ -173,8 +172,7 @@ The JSONRPC protocol defines a range for server defined errors.
   from aiohttp_json_rpc import RpcInvalidParamsError
 
 
-  @asyncio.coroutine
-  def add(request):
+  async def add(request):
       try:
           a = params.get('a')
           b = params.get('b')
@@ -185,7 +183,6 @@ The JSONRPC protocol defines a range for server defined errors.
           raise RpcInvalidParamsError
 
 
-    @asyncio.coroutine
     async def add(request):
         raise RpcGenericServerDefinedError(
             error_code=-32050,
@@ -202,8 +199,7 @@ The RPC will send an RPC ServerError and proceed as if nothing happened.
 
 .. code-block:: python
 
-  @asyncio.coroutine
-  def divide(request):
+  async def divide(request):
       return 1 / 0  # will raise a ZeroDivisionError
 
 .. code-block::
@@ -254,8 +250,7 @@ For details see the corresponding Django documentation.
   @login_required
   @permission_required('ping')
   @user_passes_test(lambda user: user.is_superuser)
-  @asyncio.coroutine
-  def ping(request):
+  async def ping(request):
       return 'pong'
 
   if __name__ == '__main__':

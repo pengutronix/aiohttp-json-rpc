@@ -161,8 +161,7 @@ class PasswdAuthBackend:
 
         request.subscriptions = request.topics & request.subscriptions
 
-    @asyncio.coroutine
-    def login(self, request):
+    async def login(self, request):
         loop = asyncio.get_event_loop()
 
         try:
@@ -173,9 +172,7 @@ class PasswdAuthBackend:
             raise RpcInvalidParamsError
 
         request.http_request.user, request.http_request.permissions = (
-            yield from loop.run_in_executor(
-                None, self._login, username, password)
-        )
+            await loop.run_in_executor(None, self._login, username, password))
 
         # rediscover methods
         self.prepare_request(request.http_request)
@@ -183,8 +180,7 @@ class PasswdAuthBackend:
         return bool(request.http_request.user)
 
     @login_required
-    @asyncio.coroutine
-    def logout(self, request):
+    async def logout(self, request):
         request.http_request.user = None
         request.http_request.permissions = set()
 
@@ -193,8 +189,7 @@ class PasswdAuthBackend:
         return True
 
     @login_required
-    @asyncio.coroutine
-    def create_user(self, request):
+    async def create_user(self, request):
         loop = asyncio.get_event_loop()
 
         try:
@@ -204,12 +199,11 @@ class PasswdAuthBackend:
         except (KeyError, TypeError):
             raise RpcInvalidParamsError
 
-        return (yield from loop.run_in_executor(None, self._create_user,
-                                                username, password))
+        return (await loop.run_in_executor(None, self._create_user,
+                                           username, password))
 
     @login_required
-    @asyncio.coroutine
-    def delete_user(self, request):
+    async def delete_user(self, request):
         loop = asyncio.get_event_loop()
 
         try:
@@ -218,12 +212,10 @@ class PasswdAuthBackend:
         except (KeyError, TypeError):
             raise RpcInvalidParamsError
 
-        return (yield from loop.run_in_executor(None, self._delete_user,
-                                                username))
+        return (await loop.run_in_executor(None, self._delete_user, username))
 
     @login_required
-    @asyncio.coroutine
-    def set_password(self, request):
+    async def set_password(self, request):
         loop = asyncio.get_event_loop()
 
         try:
@@ -236,7 +228,6 @@ class PasswdAuthBackend:
         except (KeyError, TypeError):
             raise RpcInvalidParamsError
 
-        return (yield from loop.run_in_executor(
-                    None, lambda: self._set_password(
-                        username, password,
-                        old_password=old_password)))
+        return (await loop.run_in_executor(None, lambda: self._set_password(
+                    username, password,
+                    old_password=old_password)))
