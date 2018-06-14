@@ -26,13 +26,14 @@ from .exceptions import (
 
 
 class JsonRpc(object):
-    def __init__(self, auth_backend=None, logger=None):
+    def __init__(self, loop=None, auth_backend=None, logger=None):
         self.clients = []
         self.methods = {}
         self.topics = {}
         self.state = {}
         self.logger = logger or logging.getLogger('aiohttp-json-rpc.server')
         self.auth_backend = auth_backend or DummyAuthBackend()
+        self.loop = loop or asyncio.get_event_loop()
 
         self.add_methods(
             ('', self.get_methods),
@@ -212,8 +213,6 @@ class JsonRpc(object):
             ))
 
     async def handle_websocket_request(self, http_request):
-        loop = asyncio.get_event_loop()
-
         http_request.msg_id = 0
         http_request.pending = {}
 
@@ -231,7 +230,7 @@ class JsonRpc(object):
                 continue
 
             self.logger.debug('raw msg received: %s', raw_msg.data)
-            loop.create_task(self._handle_rpc_msg(http_request, raw_msg))
+            self.loop.create_task(self._handle_rpc_msg(http_request, raw_msg))
 
         self.clients.remove(http_request)
         return ws
