@@ -16,8 +16,7 @@ def clock(rpc):
     """
 
     while True:
-        rpc.notify('clock', str(datetime.datetime.now()))
-
+        yield from rpc.notify('clock', str(datetime.datetime.now()))
         yield from asyncio.sleep(1)
 
 
