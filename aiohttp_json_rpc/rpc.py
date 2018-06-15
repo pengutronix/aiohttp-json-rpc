@@ -252,9 +252,6 @@ class JsonRpc(object):
             if topic and topic in request.topics:
                 request.subscriptions.add(topic)
 
-                if topic in self.state:
-                    request.ws.send_notification(topic, self.state[topic])
-
         return list(request.subscriptions)
 
     async def unsubscribe(self, request):
@@ -293,6 +290,12 @@ class JsonRpc(object):
             try:
                 await client.ws.send_str(encode_notification(topic, data))
 
+                # NOTE: dirty fix:
+                # Log 'socket.send() raised exception.' is generated if
+                # connection to any client is not properly closed, e.g.
+                # client is killed.
+                if client.ws._writer.transport.is_closing():
+                    await client.ws.close()
             except Exception as e:
                 self.logger.exception(e)
 
