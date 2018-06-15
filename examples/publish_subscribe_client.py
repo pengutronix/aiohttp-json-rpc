@@ -9,7 +9,6 @@ async def handler(data):
 
 
 async def run():
-    message = asyncio.Future()
     client = JsonRpcClient()
     await client.connect_url('ws://127.0.0.1:8080/')
     await client.subscribe('clock', handler)

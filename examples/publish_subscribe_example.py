@@ -8,16 +8,15 @@ import datetime
 import asyncio
 
 
-@asyncio.coroutine
-def clock(rpc):
+async def clock(rpc):
     """
     This task runs forever and notifies all clients subscribed to
     'clock' once a second.
     """
 
     while True:
-        yield from rpc.notify('clock', str(datetime.datetime.now()))
-        yield from asyncio.sleep(1)
+        await rpc.notify('clock', str(datetime.datetime.now()))
+        await asyncio.sleep(1)
 
 
 if __name__ == '__main__':
