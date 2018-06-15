@@ -253,7 +253,7 @@ class JsonRpc(object):
                 request.subscriptions.add(topic)
 
                 if topic in self.state:
-                    request.ws.send_notification(topic, self.state[topic])
+                    await request.send_notification(topic, self.state[topic])
 
         return list(request.subscriptions)
 

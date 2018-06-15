@@ -69,6 +69,34 @@ async def test_notify(rpc_context):
 
 
 @pytest.mark.asyncio
+async def test_state(rpc_context):
+    import asyncio
+
+    # setup rpc
+    rpc_context.rpc.add_topics('topic')
+    await rpc_context.rpc.notify('topic', 'foo')
+
+    # setup client
+    message = asyncio.Future()
+
+    async def handler(data):
+        if data['method'] == 'topic':
+            message.set_result(data)
+
+    client = await rpc_context.make_client()
+
+    await client.subscribe('topic', handler)
+
+    # run test
+    await asyncio.wait_for(message, 1)
+
+    result = message.result()
+
+    assert result['method'] == 'topic'
+    assert result['params'] == 'foo'
+
+
+@pytest.mark.asyncio
 async def test_notify_on_request(rpc_context, event_loop):
     import asyncio
 
