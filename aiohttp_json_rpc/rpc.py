@@ -252,6 +252,9 @@ class JsonRpc(object):
             if topic and topic in request.topics:
                 request.subscriptions.add(topic)
 
+                if topic in self.state:
+                    await request.send_notification(topic, self.state[topic])
+
         return list(request.subscriptions)
 
     async def unsubscribe(self, request):
