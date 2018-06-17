@@ -22,6 +22,7 @@ shell: env
 	ipython
 
 django-migrate: env
+	rm -rf tests/django_project/db.sqlite3 && \
 	. $(PYTHON_VENV)/bin/activate && \
 	DJANGO_SETTINGS_MODULE=django_project.settings django-admin migrate
 
