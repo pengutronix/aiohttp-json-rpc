@@ -128,13 +128,6 @@ def django_rpc_context(db, event_loop, unused_tcp_port):
 
 
 @pytest.fixture
-def django_permissions(db):
-    from aiohttp_json_rpc.django import generate_view_permissions
-
-    generate_view_permissions()
-
-
-@pytest.fixture
 def django_staff_user(db):
     from django.contrib.auth import get_user_model
 

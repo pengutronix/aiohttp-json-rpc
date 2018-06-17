@@ -1,4 +1,7 @@
+from django.db.models.signals import post_migrate
 from django.apps import AppConfig
+
+from . import generate_view_permissions
 
 
 class AiohttpJsonRpcConfig(AppConfig):
@@ -6,13 +9,8 @@ class AiohttpJsonRpcConfig(AppConfig):
     verbose_name = 'aiohttp-json-rpc config'
 
     def ready(self):
-        from django.contrib.contenttypes.models import ContentType
-        from django.contrib.auth.models import Permission
-        from django.apps import apps
-
-        for model in apps.get_models():
-            Permission.objects.get_or_create(
-                codename='view_{}'.format(model._meta.model_name),
-                name='Can view {}'.format(model._meta.verbose_name),
-                content_type=ContentType.objects.get_for_model(model),
-            )
+        post_migrate.connect(
+            lambda sender, **kwargs: generate_view_permissions(),
+            sender=self,
+            weak=False,
+        )

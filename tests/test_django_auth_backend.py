@@ -45,9 +45,7 @@ async def test_login(django_rpc_context, django_staff_user):
 
 
 @pytest.mark.asyncio
-async def test_generic_orm_methods(django_rpc_context, django_permissions,
-                                   django_staff_user):
-
+async def test_generic_orm_methods(django_rpc_context, django_staff_user):
     client = await django_rpc_context.make_client()
 
     assert await client.call('login', {
@@ -61,9 +59,7 @@ async def test_generic_orm_methods(django_rpc_context, django_permissions,
 
 
 @pytest.mark.asyncio
-async def test_generic_orm_view(django_rpc_context, django_permissions,
-                                django_staff_user, items):
-
+async def test_generic_orm_view(django_rpc_context, django_staff_user, items):
     client = await django_rpc_context.make_client()
 
     assert await client.call('login', {
@@ -82,8 +78,8 @@ async def test_generic_orm_view(django_rpc_context, django_permissions,
 
 
 @pytest.mark.asyncio
-async def test_generic_orm_delete(django_rpc_context, django_permissions,
-                                  django_staff_user, items):
+async def test_generic_orm_delete(django_rpc_context, django_staff_user,
+                                  items):
 
     client = await django_rpc_context.make_client()
 
@@ -103,9 +99,7 @@ async def test_generic_orm_delete(django_rpc_context, django_permissions,
 
 
 @pytest.mark.asyncio
-async def test_generic_orm_add(django_rpc_context, django_permissions,
-                               django_staff_user, items):
-
+async def test_generic_orm_add(django_rpc_context, django_staff_user, items):
     client = await django_rpc_context.make_client()
 
     assert await client.call('login', {
@@ -128,8 +122,8 @@ async def test_generic_orm_add(django_rpc_context, django_permissions,
 
 
 @pytest.mark.asyncio
-async def test_generic_orm_change(django_rpc_context, django_permissions,
-                                  django_staff_user, items):
+async def test_generic_orm_change(django_rpc_context, django_staff_user,
+                                  items):
 
     client = await django_rpc_context.make_client()
 
