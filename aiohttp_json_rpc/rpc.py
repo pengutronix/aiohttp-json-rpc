@@ -293,6 +293,12 @@ class JsonRpc(object):
             try:
                 await client.ws.send_str(encode_notification(topic, data))
 
+                # NOTE: dirty fix:
+                # Log 'socket.send() raised exception.' is generated if
+                # connection to any client is not properly closed, e.g.
+                # client is killed.
+                if client.ws._writer.transport.is_closing():
+                    await client.ws.close()
             except Exception as e:
                 self.logger.exception(e)
 
