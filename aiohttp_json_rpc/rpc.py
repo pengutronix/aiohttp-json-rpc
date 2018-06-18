@@ -140,13 +140,20 @@ class JsonRpc(object):
         elif request.method == 'POST':
             return aiohttp.web.Response(status=405)
 
+    async def _ws_send_str(self, client, string):
+        if client.ws._writer.transport.is_closing():
+            self.clients.remove(client)
+            await client.ws.close()
+
+        await client.ws.send_str(string)
+
     async def _handle_rpc_msg(self, http_request, raw_msg):
         try:
             msg = decode_msg(raw_msg.data)
             self.logger.debug('message decoded: %s', msg)
 
         except RpcError as error:
-            await http_request.ws.send_str(encode_error(error))
+            await self._ws_send_str(http_request, encode_error(error))
 
             return
 
@@ -159,7 +166,7 @@ class JsonRpc(object):
                 self.logger.debug('method %s is unknown or restricted',
                                   msg.data['method'])
 
-                await http_request.ws.send_str(encode_error(
+                await self._ws_send_str(http_request, encode_error(
                     RpcMethodNotFoundError(msg_id=msg.data.get('id', None))
                 ))
 
@@ -182,19 +189,21 @@ class JsonRpc(object):
                 if not raw_response:
                     result = encode_result(msg.data['id'], result)
 
-                await http_request.ws.send_str(result)
+                await self._ws_send_str(http_request, result)
 
             except (RpcGenericServerDefinedError,
                     RpcInvalidRequestError,
                     RpcInvalidParamsError) as error:
 
-                await http_request.ws.send_str(
-                    encode_error(error, id=msg.data.get('id', None)))
+                await self._ws_send_str(
+                    http_request,
+                    encode_error(error, id=msg.data.get('id', None))
+                )
 
             except Exception as error:
                 logging.error(error, exc_info=True)
 
-                await http_request.ws.send_str(encode_error(
+                await self._ws_send_str(http_request, encode_error(
                     RpcInternalError(msg_id=msg.data.get('id', None))
                 ))
 
@@ -208,7 +217,7 @@ class JsonRpc(object):
         else:
             self.logger.debug('unsupported msg type (%s)', msg.type)
 
-            await http_request.ws.send_str(encode_error(
+            await self._ws_send_str(http_request, encode_error(
                 RpcInvalidRequestError(msg_id=msg.data.get('id', None))
             ))
 
@@ -287,11 +296,9 @@ class JsonRpc(object):
         self.state[topic] = data
 
         for client in self.filter(topic):
-            if client.ws.closed:
-                continue
-
             try:
-                await client.ws.send_str(encode_notification(topic, data))
+                await self._ws_send_str(
+                    client, encode_notification(topic, data))
 
             except Exception as e:
                 self.logger.exception(e)
