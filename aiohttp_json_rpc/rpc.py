@@ -3,6 +3,7 @@ import aiohttp
 import functools
 import importlib
 import logging
+import inspect
 
 from .communicaton import JsonRpcRequest
 from .auth import DummyAuthBackend
@@ -120,6 +121,56 @@ class JsonRpc(object):
 
             self.topics[name] = func
 
+    async def _run_method(self, method, params, credentials):
+        argspec = inspect.getargspec(method)  # FIXME: cache argspec
+
+        args = [i for i in argspec.args
+                if i not in credentials and i != 'self']
+
+        method_params = dict()
+
+        # required args
+        required_args = args
+
+        if not (len(args) == 1 and argspec.defaults is None):
+            required_args = [i for i in args[:-len(argspec.defaults or ())]
+                             if i not in credentials]
+
+        # optional args
+        optional_args = [i for i in
+                         args[len(args or []) - len(argspec.defaults or ()):]
+                         if i not in credentials]
+
+        # convert args
+        if params is None:
+            params = {}
+
+        if type(params) not in (dict, list):
+            params = [params]
+
+        if type(params) == list:
+            params = {args[i]: v for i, v in enumerate(params)
+                      if i < len(args)}
+
+        # required args
+        for i in required_args:
+            if i not in params:
+                raise RpcInvalidParamsError(message='to few arguments')
+
+            method_params[i] = params[i]
+
+        # optional args
+        for i, v in enumerate(optional_args):
+            method_params[v] = params.get(v, argspec.defaults[i])
+
+        # credentials
+        for k, v in credentials.items():
+            if k in argspec.args:
+                method_params[k] = v
+
+        # run method
+        return await method(**method_params)
+
     async def __call__(self, request):
         # prepare request
         request.rpc = self
@@ -183,8 +234,13 @@ class JsonRpc(object):
                     msg=msg,
                 )
 
-                result = await http_request.methods[msg.data['method']](
-                    json_rpc_request)
+                result = await self._run_method(
+                    method=http_request.methods[msg.data['method']],
+                    params=msg.data['params'],
+                    credentials={
+                        'request': json_rpc_request,
+                    }
+                )
 
                 if not raw_response:
                     result = encode_result(msg.data['id'], result)
