@@ -1,8 +1,11 @@
+from copy import copy
 import asyncio
 import aiohttp
 import functools
 import importlib
 import logging
+import inspect
+import types
 
 from .communicaton import JsonRpcRequest
 from .threading import ThreadedWorkerPool
@@ -24,6 +27,84 @@ from .exceptions import (
     RpcInternalError,
     RpcError,
 )
+
+
+class JsonRpcMethod:
+    CREDENTIAL_KEYS = ['request', 'self', 'worker_pool', 'ws']
+
+    def __init__(self, method):
+        self.method = method
+
+        # method introspection
+        self.argspec = inspect.getfullargspec(method)
+        self.defaults = copy(self.argspec.defaults)
+
+        self.args = [i for i in self.argspec.args
+                     if i not in self.CREDENTIAL_KEYS]
+
+        # required args
+        self.required_args = copy(self.args)
+
+        if not (len(self.args) == 1 and self.defaults is None):
+            self.required_args = [
+                i for i in self.args[:-len(self.defaults or ())]
+                if i not in self.CREDENTIAL_KEYS
+            ]
+
+        # optional args
+        self.optional_args = [
+            i for i in (self.args[len(self.args or []) -
+                        len(self.defaults or ()):])
+            if i not in self.CREDENTIAL_KEYS
+        ]
+
+    async def __call__(self, params, credentials):
+        method_params = dict()
+
+        # convert args
+        if params is None:
+            params = {}
+
+        if type(params) not in (dict, list):
+            params = [params]
+
+        if type(params) == list:
+            params = {self.args[i]: v for i, v in enumerate(params)
+                      if i < len(self.args)}
+
+        # required args
+        for i in self.required_args:
+            if i not in params:
+                raise RpcInvalidParamsError(message='to few arguments')
+
+            method_params[i] = params[i]
+
+        # optional args
+        for i, v in enumerate(self.optional_args):
+            method_params[v] = params.get(v, self.defaults[i])
+
+        # validators
+        if hasattr(self.method, 'validators'):
+            for arg_name, validator_list in self.method.validators.items():
+                if not isinstance(validator_list, (list, tuple)):
+                    validator_list = [validator_list]
+
+                for validator in validator_list:
+                    if isinstance(validator, type):
+                        if not isinstance(method_params[arg_name], validator):
+                            raise RpcInvalidParamsError(message="'{}' has to be '{}'".format(arg_name, validator.__name__))  # NOQA
+
+                    elif isinstance(validator, types.FunctionType):
+                        if not validator(method_params[arg_name]):
+                            raise RpcInvalidParamsError(message="'{}': validation error".format(arg_name))  # NOQA
+
+        # credentials
+        for k, v in credentials.items():
+            if k in self.argspec.args:
+                method_params[k] = v
+
+        # run method
+        return await self.method(**method_params)
 
 
 class JsonRpc(object):
@@ -56,7 +137,7 @@ class JsonRpc(object):
         if prefix:
             name = '{}__{}'.format(prefix, name)
 
-        self.methods[name] = method
+        self.methods[name] = JsonRpcMethod(method)
 
     def _add_methods_from_object(self, obj, prefix='', ignore=[]):
         for attr_name in dir(obj):
@@ -177,8 +258,11 @@ class JsonRpc(object):
                 return
 
             # call method
-            raw_response = getattr(http_request.methods[msg.data['method']],
-                                   'raw_response', False)
+            raw_response = getattr(
+                http_request.methods[msg.data['method']].method,
+                'raw_response',
+                False,
+            )
 
             try:
                 json_rpc_request = JsonRpcRequest(
@@ -188,7 +272,13 @@ class JsonRpc(object):
                 )
 
                 result = await http_request.methods[msg.data['method']](
-                    json_rpc_request)
+                    params=msg.data['params'],
+                    credentials={
+                        'request': json_rpc_request,
+                        'worker_pool': self.worker_pool,
+                        'ws': http_request.ws,
+                    }
+                )
 
                 if not raw_response:
                     result = encode_result(msg.data['id'], result)

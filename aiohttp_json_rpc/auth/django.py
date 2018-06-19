@@ -9,6 +9,7 @@ from django.http import HttpRequest
 from django.apps import apps
 
 from .. import RpcInvalidParamsError
+from ..rpc import JsonRpcMethod
 from . import AuthBackend
 
 
@@ -185,7 +186,7 @@ class DjangoAuthBackend(AuthBackend):
 
         # django auth methods
         if isinstance(request.user, AnonymousUser):
-            request.methods['login'] = self.login
+            request.methods['login'] = JsonRpcMethod(self.login)
 
         # generic django model methods
         if self.generic_orm_methods:
@@ -194,11 +195,12 @@ class DjangoAuthBackend(AuthBackend):
                 method_name = 'db__{}'.format(permission_name)
 
                 if action in ('view', 'add', 'change', 'delete', ):
-                    request.methods[method_name] = self.handle_orm_call
+                    request.methods[method_name] = JsonRpcMethod(
+                        self.handle_orm_call)
 
         # rpc defined methods
         for name, method in request.rpc.methods.items():
-            if self._is_authorized(request, method):
+            if self._is_authorized(request, method.method):
                 request.methods[name] = method
 
         # topics
