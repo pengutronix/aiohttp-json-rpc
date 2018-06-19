@@ -325,5 +325,8 @@ def unpack_request_args(original_rpc_method):
             rpc_kwargs = rpc_call_params.get('kwargs', {})
         except AttributeError:
             pass
-        return await original_rpc_method(*rpc_args, **rpc_kwargs)
+        if asyncio.iscoroutinefunction(original_rpc_method):
+            return await original_rpc_method(*rpc_args, **rpc_kwargs)
+        else:
+            return original_rpc_method(*rpc_args, **rpc_kwargs)
     return rpc_method_wrapper
