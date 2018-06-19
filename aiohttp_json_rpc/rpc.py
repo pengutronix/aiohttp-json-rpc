@@ -30,7 +30,7 @@ class JsonRpc(object):
         self.clients = []
         self.methods = {}
         self.topics = {}
-        self.state = {}
+        self.topic_clients_map = {}
         self.logger = logger or logging.getLogger('aiohttp-json-rpc.server')
         self.auth_backend = auth_backend or DummyAuthBackend()
         self.loop = loop or asyncio.get_event_loop()
@@ -241,6 +241,9 @@ class JsonRpc(object):
             self.logger.debug('raw msg received: %s', raw_msg.data)
             self.loop.create_task(self._handle_rpc_msg(http_request, raw_msg))
 
+        # Remove reference ID for request from topic map
+        for topic in http_request.subscriptions:
+            del self.topic_clients_map.get(topic, {})[id(http_request)]
         self.clients.remove(http_request)
         return ws
 
@@ -258,8 +261,14 @@ class JsonRpc(object):
             request.params = [request.params]
 
         for topic in request.params:
-            if topic and topic in request.topics:
+            if not topic:
+                continue
+            if topic in request.topics:
                 request.subscriptions.add(topic)
+            if topic not in self.topic_clients_map:
+                self.topic_clients_map[topic] = {id(request.http_request): request.http_request}
+            elif id(request.http_request) not in self.topic_clients_map[topic]:
+                self.topic_clients_map[topic][id(request.http_request)] = request.http_request
 
                 if topic in self.state:
                     await request.send_notification(topic, self.state[topic])
@@ -271,8 +280,11 @@ class JsonRpc(object):
             request.params = [request.params]
 
         for topic in request.params:
-            if topic and topic in request.subscriptions:
+            if not topic:
+                continue
+            if topic in request.subscriptions:
                 request.subscriptions.remove(topic)
+            del self.topic_clients_map[topic][id(request.http_request)]
 
         return list(request.subscriptions)
 
@@ -281,19 +293,14 @@ class JsonRpc(object):
             topics = [topics]
 
         topics = set(topics)
-
-        for client in self.clients:
-            if client.ws.closed:
-                continue
-
-            if len(topics & client.subscriptions) > 0:
+        for topic in topics:
+            for client in self.topic_clients_map.get(topic, {}).values():
                 yield client
 
     async def notify(self, topic, data=None):
         if type(topic) is not str:
             raise ValueError
 
-        self.state[topic] = data
         msg = None
         for client in self.filter(topic):
             try:
