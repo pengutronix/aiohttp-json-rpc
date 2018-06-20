@@ -103,6 +103,7 @@ async def test_call_method_and_unpack_args(rpc_context, caplog):
         ('', add_extra),
         ('', ping),
         ('', ClsBasedViews()),
+        ('', rpc.unpack_request_args(sum), 'sum'),
     )
 
     client = await rpc_context.make_client()
@@ -127,6 +128,16 @@ async def test_call_method_and_unpack_args(rpc_context, caplog):
         }
     )
     expected = '3 val'
+    assert actual == expected
+
+    actual = await client.call(
+        'sum',
+        params={
+            'args': [[1, 2]],
+            'kwargs': {}
+        }
+    )
+    expected = 3
     assert actual == expected
 
 

@@ -30,7 +30,7 @@ class JsonRpc(object):
         self.clients = []
         self.methods = {}
         self.topics = {}
-        self.state = {}
+        self.topic_clients_map = {}
         self.logger = logger or logging.getLogger('aiohttp-json-rpc.server')
         self.auth_backend = auth_backend or DummyAuthBackend()
         self.loop = loop or asyncio.get_event_loop()
@@ -120,6 +120,12 @@ class JsonRpc(object):
 
             self.topics[name] = func
 
+    def _close_client(self, client):
+        # Remove reference ID for request from topic map
+        for topic in client.subscriptions:
+            del self.topic_clients_map.get(topic)[id(client)]
+        self.clients.remove(client)
+
     async def __call__(self, request):
         # prepare request
         request.rpc = self
@@ -142,8 +148,9 @@ class JsonRpc(object):
 
     async def _ws_send_str(self, client, string):
         if client.ws._writer.transport.is_closing():
-            self.clients.remove(client)
             await client.ws.close()
+            self._close_client(client)
+            return
 
         await client.ws.send_str(string)
 
@@ -241,7 +248,7 @@ class JsonRpc(object):
             self.logger.debug('raw msg received: %s', raw_msg.data)
             self.loop.create_task(self._handle_rpc_msg(http_request, raw_msg))
 
-        self.clients.remove(http_request)
+        self._close_client(http_request)
         return ws
 
     async def get_methods(self, request):
@@ -258,11 +265,14 @@ class JsonRpc(object):
             request.params = [request.params]
 
         for topic in request.params:
-            if topic and topic in request.topics:
+            if not topic:
+                continue
+            if topic in request.topics:
                 request.subscriptions.add(topic)
-
-                if topic in self.state:
-                    await request.send_notification(topic, self.state[topic])
+            if topic not in self.topic_clients_map:
+                self.topic_clients_map[topic] = {id(request.http_request): request.http_request}
+            elif id(request.http_request) not in self.topic_clients_map[topic]:
+                self.topic_clients_map[topic][id(request.http_request)] = request.http_request
 
         return list(request.subscriptions)
 
@@ -271,8 +281,11 @@ class JsonRpc(object):
             request.params = [request.params]
 
         for topic in request.params:
-            if topic and topic in request.subscriptions:
+            if not topic:
+                continue
+            if topic in request.subscriptions:
                 request.subscriptions.remove(topic)
+            del self.topic_clients_map[topic][id(request.http_request)]
 
         return list(request.subscriptions)
 
@@ -281,25 +294,20 @@ class JsonRpc(object):
             topics = [topics]
 
         topics = set(topics)
-
-        for client in self.clients:
-            if client.ws.closed:
-                continue
-
-            if len(topics & client.subscriptions) > 0:
+        for topic in topics:
+            for client in list(self.topic_clients_map.get(topic, {}).values()):
                 yield client
 
     async def notify(self, topic, data=None):
         if type(topic) is not str:
             raise ValueError
 
-        self.state[topic] = data
-
+        msg = None
         for client in self.filter(topic):
             try:
-                await self._ws_send_str(
-                    client, encode_notification(topic, data))
-
+                if msg is None:
+                    msg = encode_notification(topic, data)
+                await self._ws_send_str(client, msg)
             except Exception as e:
                 self.logger.exception(e)
 
@@ -325,5 +333,8 @@ def unpack_request_args(original_rpc_method):
             rpc_kwargs = rpc_call_params.get('kwargs', {})
         except AttributeError:
             pass
-        return await original_rpc_method(*rpc_args, **rpc_kwargs)
+        if asyncio.iscoroutinefunction(original_rpc_method):
+            return await original_rpc_method(*rpc_args, **rpc_kwargs)
+        else:
+            return original_rpc_method(*rpc_args, **rpc_kwargs)
     return rpc_method_wrapper
