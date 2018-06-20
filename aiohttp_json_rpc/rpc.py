@@ -120,6 +120,12 @@ class JsonRpc(object):
 
             self.topics[name] = func
 
+    def _close_client(self, client):
+        # Remove reference ID for request from topic map
+        for topic in client.subscriptions:
+            del self.topic_clients_map.get(topic)[id(client)]
+        self.clients.remove(client)
+
     async def __call__(self, request):
         # prepare request
         request.rpc = self
@@ -142,8 +148,9 @@ class JsonRpc(object):
 
     async def _ws_send_str(self, client, string):
         if client.ws._writer.transport.is_closing():
-            self.clients.remove(client)
             await client.ws.close()
+            self._close_client(client)
+            return
 
         await client.ws.send_str(string)
 
@@ -241,10 +248,7 @@ class JsonRpc(object):
             self.logger.debug('raw msg received: %s', raw_msg.data)
             self.loop.create_task(self._handle_rpc_msg(http_request, raw_msg))
 
-        # Remove reference ID for request from topic map
-        for topic in http_request.subscriptions:
-            del self.topic_clients_map.get(topic, {})[id(http_request)]
-        self.clients.remove(http_request)
+        self._close_client(http_request)
         return ws
 
     async def get_methods(self, request):
@@ -270,9 +274,6 @@ class JsonRpc(object):
             elif id(request.http_request) not in self.topic_clients_map[topic]:
                 self.topic_clients_map[topic][id(request.http_request)] = request.http_request
 
-                if topic in self.state:
-                    await request.send_notification(topic, self.state[topic])
-
         return list(request.subscriptions)
 
     async def unsubscribe(self, request):
@@ -294,7 +295,7 @@ class JsonRpc(object):
 
         topics = set(topics)
         for topic in topics:
-            for client in self.topic_clients_map.get(topic, {}).values():
+            for client in list(self.topic_clients_map.get(topic, {}).values()):
                 yield client
 
     async def notify(self, topic, data=None):
