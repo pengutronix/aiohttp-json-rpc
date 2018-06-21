@@ -294,12 +294,12 @@ class JsonRpc(object):
             raise ValueError
 
         self.state[topic] = data
-
+        notification = None
         for client in self.filter(topic):
             try:
-                await self._ws_send_str(
-                    client, encode_notification(topic, data))
-
+                if notification is None:
+                    notification = encode_notification(topic, data)
+                await self._ws_send_str(client, notification)
             except Exception as e:
                 self.logger.exception(e)
 
