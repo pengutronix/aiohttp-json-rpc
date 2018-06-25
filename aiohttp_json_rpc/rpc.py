@@ -5,6 +5,7 @@ import importlib
 import logging
 
 from .communicaton import JsonRpcRequest
+from .threading import ThreadedWorkerPool
 from .auth import DummyAuthBackend
 
 from .protocol import (
@@ -26,7 +27,9 @@ from .exceptions import (
 
 
 class JsonRpc(object):
-    def __init__(self, loop=None, auth_backend=None, logger=None):
+    def __init__(self, loop=None, max_workers=0, auth_backend=None,
+                 logger=None):
+
         self.clients = []
         self.methods = {}
         self.topics = {}
@@ -34,6 +37,7 @@ class JsonRpc(object):
         self.logger = logger or logging.getLogger('aiohttp-json-rpc.server')
         self.auth_backend = auth_backend or DummyAuthBackend()
         self.loop = loop or asyncio.get_event_loop()
+        self.worker_pool = ThreadedWorkerPool(max_workers=max_workers)
 
         self.add_methods(
             ('', self.get_methods),
