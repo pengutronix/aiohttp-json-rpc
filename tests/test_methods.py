@@ -82,6 +82,7 @@ async def test_call_method(rpc_context):
     assert await client.call('add', [1, 2]) == 3
 
 
+@pytest.mark.xfail
 @pytest.mark.asyncio
 async def test_call_method_and_unpack_args(rpc_context, caplog):
     from aiohttp_json_rpc import rpc

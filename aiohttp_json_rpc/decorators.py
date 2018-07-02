@@ -8,3 +8,15 @@ def raw_response(function=None):
         return decorator(function)
 
     return decorator
+
+
+def validate(**kwargs):
+    def decorator(function):
+        if not hasattr(function, 'validators'):
+            function.validators = {}
+
+        function.validators.update(kwargs)
+
+        return function
+
+    return decorator
