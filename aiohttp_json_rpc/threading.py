@@ -14,18 +14,21 @@ class ThreadedWorkerPool:
             self.executor = None
 
     async def run(self, func, *args, **kwargs):
+        if not isinstance(func, partial):
+            func = partial(func, *args, **kwargs)
+
         if not self.executor:
-            func(*args, **kwargs)
+            return func()
 
         def _run(func, *args):
             try:
-                future.set_result(func(*args, **kwargs))
+                future.set_result(func())
 
             except Exception as e:
                 future.set_exception(e)
 
         future = asyncio.Future()
-        self.loop.run_in_executor(self.executor, _run, func, *args, **kwargs)
+        self.loop.run_in_executor(self.executor, _run, func)
 
         return await future
 
