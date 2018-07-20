@@ -120,7 +120,13 @@ class JsonRpcClient:
         self._session = aiohttp.ClientSession(cookies=cookies, loop=self._loop)
 
         self._logger.debug('#%s: ws connect...', self._id)
-        self._ws = await self._session.ws_connect(url)
+        self._ws = None
+        try:
+            self._ws = await self._session.ws_connect(url)
+        finally:
+            if self._ws is None:
+                # Ensure session is closed when connection failed
+                await self._session.close()
         self._logger.debug('#%s: ws connected', self._id)
 
         self._message_worker = asyncio.ensure_future(self._handle_msgs())
