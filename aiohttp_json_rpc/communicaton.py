@@ -81,3 +81,13 @@ class JsonRpcRequest:
 
     async def send_notification(self, method, params=None):
         await self.ws.send_str(encode_notification(method, params))
+
+
+class SyncJsonRpcRequest(JsonRpcRequest):
+    def call(self, method, params=None, wait=True):
+        return self.rpc.worker_pool.run_sync(super().call, method,
+                                             params, wait=wait)
+
+    def send_notification(self, method, params=None, wait=True):
+        self.rpc.worker_pool.run_sync(super().send_notification, method,
+                                      params, wait=wait)

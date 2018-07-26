@@ -99,7 +99,7 @@ def gen_rpc_context(loop, host, port, rpc, rpc_route, routes=(),
 
 @pytest.yield_fixture
 def rpc_context(event_loop, unused_tcp_port):
-    rpc = JsonRpc(loop=event_loop)
+    rpc = JsonRpc(loop=event_loop, max_workers=4)
     rpc_route = ('*', '/rpc', rpc)
 
     for context in gen_rpc_context(event_loop, 'localhost', unused_tcp_port,
@@ -113,7 +113,8 @@ def django_rpc_context(db, event_loop, unused_tcp_port):
     from aiohttp_wsgi import WSGIHandler
 
     rpc = JsonRpc(loop=event_loop,
-                  auth_backend=DjangoAuthBackend(generic_orm_methods=True))
+                  auth_backend=DjangoAuthBackend(generic_orm_methods=True),
+                  max_workers=4)
 
     rpc_route = ('*', '/rpc', rpc)
 

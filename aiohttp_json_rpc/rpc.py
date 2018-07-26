@@ -6,7 +6,7 @@ import logging
 import inspect
 import types
 
-from .communicaton import JsonRpcRequest
+from .communicaton import JsonRpcRequest, SyncJsonRpcRequest
 from .threading import ThreadedWorkerPool
 from .auth import DummyAuthBackend
 
@@ -29,7 +29,7 @@ from .exceptions import (
 
 
 class JsonRpcMethod:
-    CREDENTIAL_KEYS = ['request', 'self', 'worker_pool', 'ws']
+    CREDENTIAL_KEYS = ['request', 'worker_pool']
 
     def __init__(self, method):
         self.method = method
@@ -39,7 +39,7 @@ class JsonRpcMethod:
         self.defaults = copy(self.argspec.defaults)
 
         self.args = [i for i in self.argspec.args
-                     if i not in self.CREDENTIAL_KEYS]
+                     if i not in self.CREDENTIAL_KEYS + ['self']]
 
         # required args
         self.required_args = copy(self.args)
@@ -54,10 +54,11 @@ class JsonRpcMethod:
         self.optional_args = [
             i for i in (self.args[len(self.args or []) -
                         len(self.defaults or ()):])
-            if i not in self.CREDENTIAL_KEYS
+            if i not in self.CREDENTIAL_KEYS + ['self']
         ]
 
-    async def __call__(self, params, credentials):
+    async def __call__(self, http_request, rpc, msg):
+        params = msg.data['params']
         method_params = dict()
 
         # convert args
@@ -98,17 +99,24 @@ class JsonRpcMethod:
                             raise RpcInvalidParamsError(message="'{}': validation error".format(arg_name))  # NOQA
 
         # credentials
-        for k, v in credentials.items():
-            if k in self.argspec.args:
-                method_params[k] = v
+        if 'request' in self.argspec.args:
+            if asyncio.iscoroutinefunction(self.method):
+                method_params['request'] = JsonRpcRequest(
+                    rpc=rpc, http_request=http_request, msg=msg)
+
+            else:
+                method_params['request'] = SyncJsonRpcRequest(
+                    rpc=rpc, http_request=http_request, msg=msg)
+
+        if 'worker_pool' in self.argspec.args:
+            method_params['worker_pool'] = rpc.worker_pool
 
         # run method
         if asyncio.iscoroutinefunction(self.method):
             return await self.method(**method_params)
 
         else:
-            return await credentials['worker_pool'].run(self.method,
-                                                        **method_params)
+            return await rpc.worker_pool.run(self.method, **method_params)
 
 
 class JsonRpc(object):
@@ -269,19 +277,10 @@ class JsonRpc(object):
             )
 
             try:
-                json_rpc_request = JsonRpcRequest(
+                result = await http_request.methods[msg.data['method']](
                     http_request=http_request,
                     rpc=self,
                     msg=msg,
-                )
-
-                result = await http_request.methods[msg.data['method']](
-                    params=msg.data['params'],
-                    credentials={
-                        'request': json_rpc_request,
-                        'worker_pool': self.worker_pool,
-                        'ws': http_request.ws,
-                    }
                 )
 
                 if not raw_response:
