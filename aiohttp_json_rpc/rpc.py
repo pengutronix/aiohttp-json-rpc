@@ -103,7 +103,12 @@ class JsonRpcMethod:
                 method_params[k] = v
 
         # run method
-        return await self.method(**method_params)
+        if asyncio.iscoroutinefunction(self.method):
+            return await self.method(**method_params)
+
+        else:
+            return await credentials['worker_pool'].run(self.method,
+                                                        **method_params)
 
 
 class JsonRpc(object):
@@ -128,7 +133,7 @@ class JsonRpc(object):
         )
 
     def _add_method(self, method, name='', prefix=''):
-        if not asyncio.iscoroutinefunction(method):
+        if not callable(method):
             return
 
         name = name or method.__name__
@@ -167,7 +172,7 @@ class JsonRpc(object):
             prefix_ = prefix or arg[0]
             method = arg[1]
 
-            if asyncio.iscoroutinefunction(method):
+            if callable(method):
                 name = arg[2] if len(arg) >= 3 else ''
                 self._add_method(method, name=name, prefix=prefix_)
 
