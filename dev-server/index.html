@@ -1,0 +1,15 @@
+<http>
+    <head>
+        <title>RPC Devserver</title>
+    </head>
+    <body>
+        <h1>OK</h1>
+        <script type="text/javascript" src="/static/rpc.js"></script>
+        <script>
+            var rpc = new RPC('ws://' + window.location.host + '/rpc');
+            rpc.DEBUG = true;
+
+            rpc.connect();
+        </script>
+    </body>
+</http>

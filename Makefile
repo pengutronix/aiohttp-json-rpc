@@ -29,3 +29,9 @@ django-migrate: env
 django-shell: env
 	. $(PYTHON_VENV)/bin/activate && \
 	DJANGO_SETTINGS_MODULE=django_project.settings django-admin shell
+
+dev-server: env
+	. $(PYTHON_VENV)/bin/activate && \
+	dev-server/dev-server
+
+.PHONY: dev-server

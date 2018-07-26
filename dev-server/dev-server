@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Author: Florian Scherf <f.scherf@pengutronix.de>
+
+from aiohttp import web
+
+from aiohttp_json_rpc import JsonRpc
+
+# RPC TEST CODE ###############################################################
+rpc = JsonRpc(max_workers=4)
+
+
+async def ping():
+    return 'pong'
+
+
+rpc.add_methods(
+    ('', ping),
+)
+
+
+# RPC DEV SERVER CODE #########################################################
+async def index(request):
+    return web.Response(text=open('dev-server/index.html').read(),
+                        content_type='text/html')
+
+app = web.Application()
+app.router.add_static('/static', 'dev-server/static', show_index=True)
+app.router.add_get('/rpc', rpc)
+app.router.add_get('/', index)
+
+web.run_app(app, port=8080)
