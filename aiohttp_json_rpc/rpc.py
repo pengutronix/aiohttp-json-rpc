@@ -1,7 +1,6 @@
 from copy import copy
 import asyncio
 import aiohttp
-import functools
 import importlib
 import logging
 import inspect
@@ -396,28 +395,3 @@ class JsonRpc(object):
                 await self._ws_send_str(client, notification)
             except Exception as e:
                 self.logger.exception(e)
-
-
-def unpack_request_args(original_rpc_method):
-    @functools.wraps(original_rpc_method)
-    async def rpc_method_wrapper(*args):
-        cls_based_view = True if len(args) == 2 else False
-        rpc_kwargs = {}
-        if cls_based_view:
-            cls_instance = args[0]
-            json_rpc_request = args[1]
-            rpc_args = [cls_instance]
-        else:
-            cls_instance = None
-            json_rpc_request = args[0]
-            rpc_args = []
-
-        rpc_call_params = json_rpc_request.params
-
-        try:
-            rpc_args = [*rpc_args, *rpc_call_params.get('args', [])]
-            rpc_kwargs = rpc_call_params.get('kwargs', {})
-        except AttributeError:
-            pass
-        return await original_rpc_method(*rpc_args, **rpc_kwargs)
-    return rpc_method_wrapper

@@ -82,55 +82,6 @@ async def test_call_method(rpc_context):
     assert await client.call('add', [1, 2]) == 3
 
 
-@pytest.mark.xfail
-@pytest.mark.asyncio
-async def test_call_method_and_unpack_args(rpc_context, caplog):
-    from aiohttp_json_rpc import rpc
-
-    @rpc.unpack_request_args
-    async def add_extra(arg1, arg2, extra):
-        return str(arg1 + arg2) + ' ' + extra
-
-    @rpc.unpack_request_args
-    async def ping():
-        return 'pong'
-
-    class ClsBasedViews:
-        @rpc.unpack_request_args
-        async def add_extra_in_cls(self, arg1, arg2, extra):
-            return str(arg1 + arg2) + ' ' + extra
-
-    rpc_context.rpc.add_methods(
-        ('', add_extra),
-        ('', ping),
-        ('', ClsBasedViews()),
-    )
-
-    client = await rpc_context.make_client()
-
-    actual = await client.call(
-        'add_extra',
-        params={
-            'args': [1, 2],
-            'kwargs': {'extra': 'val'}
-        }
-    )
-    expected = '3 val'
-    assert actual == expected
-
-    assert await client.call('ping') == 'pong'
-
-    actual = await client.call(
-        'add_extra_in_cls',
-        params={
-            'args': [1, 2],
-            'kwargs': {'extra': 'val'}
-        }
-    )
-    expected = '3 val'
-    assert actual == expected
-
-
 @pytest.mark.asyncio
 async def test_method_names(rpc_context, caplog):
     async def unnamed_method(request):
