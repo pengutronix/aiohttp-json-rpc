@@ -2,12 +2,22 @@
 # -*- coding: utf-8 -*-
 # Author: Florian Scherf <f.scherf@pengutronix.de>
 
+import logging
+import asyncio
+
 from aiohttp import web
+import IPython
 
-from aiohttp_json_rpc import JsonRpc
+from aiohttp_json_rpc import JsonRpc, JsonRpcClient
 
-# RPC TEST CODE ###############################################################
-rpc = JsonRpc(max_workers=4)
+HOST = 'localhost'
+PORT = 8080
+LOG_LEVEL = logging.INFO
+
+loop = asyncio.get_event_loop()
+
+# SERVER TEST CODE ############################################################
+rpc = JsonRpc(max_workers=5)
 
 
 async def ping():
@@ -19,7 +29,18 @@ rpc.add_methods(
 )
 
 
-# RPC DEV SERVER CODE #########################################################
+# CLIENT TEST CODE ############################################################
+client = JsonRpcClient()
+
+
+async def setup_client(client):
+    await client.connect_url('ws://{}:{}/rpc'.format(HOST, PORT))
+
+
+# DEV-SERVER CODE #############################################################
+logging.basicConfig(level=LOG_LEVEL)
+
+
 async def index(request):
     return web.Response(text=open('dev-server/index.html').read(),
                         content_type='text/html')
@@ -29,4 +50,20 @@ app.router.add_static('/static', 'dev-server/static', show_index=True)
 app.router.add_get('/rpc', rpc)
 app.router.add_get('/', index)
 
-web.run_app(app, port=8080)
+loop.run_until_complete(
+    loop.create_server(app.make_handler(), 'localhost', 8080))
+
+loop.run_until_complete(setup_client(client))
+
+
+def shell():
+    def _await(coro, *args, **kwargs):
+        return rpc.worker_pool.run_sync(coro, *args, **kwargs)
+
+    def call(*args, **kwargs):
+        return _await(client.call, *args, **kwargs)
+
+    IPython.embed()
+
+
+loop.run_until_complete(rpc.worker_pool.run(shell))
