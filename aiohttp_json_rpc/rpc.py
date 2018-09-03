@@ -64,6 +64,29 @@ class JsonRpcMethod:
             if i not in self.CREDENTIAL_KEYS + ['self']
         ]
 
+        # gen repr string
+        args = []
+
+        for i, v in enumerate(self.args[::-1]):
+            if self.defaults and not i >= len(self.defaults):
+                args.append('{}={}'.format(v, repr(self.defaults[i])))
+
+            else:
+                args.append(v)
+
+        args = [
+            *[i for i in self.CREDENTIAL_KEYS if i in self.argspec.args],
+            *args[::-1],
+        ]
+
+        self._repr_str = 'JsonRpcMethod({}({}))'.format(
+            self.method.__name__,
+            ', '.join(args),
+        )
+
+    def __repr__(self):
+        return self._repr_str
+
     async def __call__(self, http_request, rpc, msg):
         params = msg.data['params']
         method_params = dict()

@@ -168,3 +168,4 @@ async def test_introspection_of_unsupported_function_types(rpc_context):
     )
 
     assert not rpc_context.rpc.methods['min'].introspected
+    assert rpc_context.rpc.methods['min'].argspec.args == ['request']
