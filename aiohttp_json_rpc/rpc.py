@@ -35,7 +35,14 @@ class JsonRpcMethod:
         self.method = method
 
         # method introspection
-        self.argspec = inspect.getfullargspec(method)
+        try:
+            self.argspec = inspect.getfullargspec(method)
+            self.introspected = True
+
+        except TypeError:  # unsupported callable
+            self.argspec = inspect.getfullargspec(lambda request: None)
+            self.introspected = False
+
         self.defaults = copy(self.argspec.defaults)
 
         self.args = [i for i in self.argspec.args

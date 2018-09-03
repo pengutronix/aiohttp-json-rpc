@@ -159,3 +159,12 @@ async def test_function_validators(rpc_context):
 
     with pytest.raises(RpcInvalidParamsError):
         await client.call('method', '1')
+
+
+@pytest.mark.asyncio
+async def test_introspection_of_unsupported_function_types(rpc_context):
+    rpc_context.rpc.add_methods(
+        ('', min),
+    )
+
+    assert not rpc_context.rpc.methods['min'].introspected
