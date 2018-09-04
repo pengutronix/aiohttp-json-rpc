@@ -163,6 +163,15 @@ async def test_function_validators(rpc_context):
 
 @pytest.mark.asyncio
 async def test_introspection_of_unsupported_function_types(rpc_context):
+    import inspect
+
+    try:
+        inspect.getfullargspec(min)
+        pytest.skip('no native C code available')  # FIXME: pypy compatibility
+
+    except Exception:
+        pass
+
     rpc_context.rpc.add_methods(
         ('', min),
     )
