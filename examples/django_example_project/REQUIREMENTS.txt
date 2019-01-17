@@ -1,4 +1,4 @@
 -e ../../
 aiohttp-wsgi==0.4.0
 chardet==2.3.0
-Django==1.8.9
+django>=1.11.18<1.12
