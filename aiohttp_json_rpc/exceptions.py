@@ -21,7 +21,7 @@ class RpcError(Exception):
 
         if(error_code is not None and
            error_code not in self.lookup_table.keys()):
-                raise ValueError('error code out of range')
+            raise ValueError('error code out of range')
 
         self.data = data
         self.msg_id = msg_id
