@@ -3,7 +3,7 @@
 # Author: Florian Scherf <f.scherf@pengutronix.de>
 
 from django_example_project.wsgi import application as django_app
-from aiohttp.web import Application
+from aiohttp.web import Application, run_app
 from aiohttp_wsgi import WSGIHandler
 from aiohttp_json_rpc import JsonRpc
 from aiohttp_json_rpc.auth.django import DjangoAuthBackend
@@ -20,12 +20,7 @@ if __name__ == '__main__':
         ('', 'django_example_app.rpc')
     )
 
-    app.router.add_route('*', '/rpc', rpc)
+    app.router.add_route('*', '/rpc', rpc.handle_request)
     app.router.add_route('*', '/{path_info:.*}', wsgi_handler.handle_request)
 
-    handler = app.make_handler()
-
-    server = loop.run_until_complete(
-        loop.create_server(handler, '0.0.0.0', 8080))
-
-    loop.run_forever()
+    run_app(app, host='0.0.0.0', port=8080)

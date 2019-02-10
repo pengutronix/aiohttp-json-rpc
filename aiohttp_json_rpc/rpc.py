@@ -247,7 +247,10 @@ class JsonRpc(object):
 
             self.topics[name] = func
 
-    async def __call__(self, request):
+    def __call__(self, request):
+        return self.handle_request(request)
+
+    async def handle_request(self, request):
         # prepare request
         request.rpc = self
         self.auth_backend.prepare_request(request)
