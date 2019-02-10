@@ -1,5 +1,5 @@
 from aiohttp import WSMsgType
-from aiohttp.web import Application
+from aiohttp.web import Application, AppRunner, TCPSite
 from aiohttp_json_rpc import JsonRpc, RpcInvalidParamsError
 import aiohttp
 import asyncio
@@ -148,17 +148,19 @@ async def test_cuncurrent_transactions(event_loop, unused_tcp_port):
     assert Item.objects.count() == 0
 
     # setup rpc
-    app = Application(loop=event_loop)
+    app = Application()
     rpc = JsonRpc()
 
     rpc.add_methods(
         ('', add),
     )
 
-    app.router.add_route('*', '/', rpc)
+    app.router.add_route('*', '/', rpc.handle_request)
 
-    await event_loop.create_server(
-        app.make_handler(), 'localhost', unused_tcp_port)
+    runner = AppRunner(app)
+    await runner.setup()
+    site = TCPSite(runner, 'localhost', unused_tcp_port)
+    await site.start()
 
     # setup clients and watchdog
     tasks = [

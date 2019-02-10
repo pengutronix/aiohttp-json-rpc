@@ -45,7 +45,7 @@ The following code implements a simple RPC server that serves the method ``ping`
 
 .. code-block:: python
 
-  from aiohttp.web import Application
+  from aiohttp.web import Application, run_app
   from aiohttp_json_rpc import JsonRpc
   import asyncio
 
@@ -63,14 +63,9 @@ The following code implements a simple RPC server that serves the method ``ping`
       )
 
       app = Application(loop=loop)
-      app.router.add_route('*', '/', rpc)
+      app.router.add_route('*', '/', rpc.handle_request)
 
-      handler = app.make_handler()
-
-      server = loop.run_until_complete(
-          loop.create_server(handler, '0.0.0.0', 8080))
-
-      loop.run_forever()
+      run_app(app, host='0.0.0.0', port=8080)
 
 
 Client (JS)

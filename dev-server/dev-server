@@ -50,8 +50,10 @@ app.router.add_static('/static', 'dev-server/static', show_index=True)
 app.router.add_get('/rpc', rpc)
 app.router.add_get('/', index)
 
-loop.run_until_complete(
-    loop.create_server(app.make_handler(), 'localhost', 8080))
+runner = web.AppRunner(app)
+loop.run_until_complete(runner.setup())
+site = web.TCPSite(runner, 'localhost', 8080)
+loop.run_until_complete(site.start())
 
 loop.run_until_complete(setup_client(client))
 

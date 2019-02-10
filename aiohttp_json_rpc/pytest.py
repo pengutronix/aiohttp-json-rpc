@@ -3,7 +3,7 @@ import asyncio
 import pytest
 import os
 
-from aiohttp.web import Application
+from aiohttp.web import Application, AppRunner, TCPSite
 
 from aiohttp_json_rpc import JsonRpc, JsonRpcClient
 
@@ -63,17 +63,18 @@ class RpcContext(object):
 def gen_rpc_context(loop, host, port, rpc, rpc_route, routes=(),
                     RpcContext=RpcContext):
     # make app
-    app = Application(loop=loop)
+    app = Application()
 
     app.router.add_route(*rpc_route)
 
     for route in routes:
         app.router.add_route(*route)
 
-    # make handler
-    handler = app.make_handler()
-
-    server = loop.run_until_complete(loop.create_server(handler, host, port))
+    # make app runner
+    runner = AppRunner(app)
+    loop.run_until_complete(runner.setup())
+    site = TCPSite(runner, host, port)
+    loop.run_until_complete(site.start())
 
     # create RpcContext
     rpc_context = RpcContext(app, rpc, host, port, rpc_route[1])
@@ -84,23 +85,13 @@ def gen_rpc_context(loop, host, port, rpc, rpc_route, routes=(),
     loop.run_until_complete(rpc_context.finish_connections())
 
     # teardown server
-    async def teardown_server():
-        try:
-            server.close()
-            await server.wait_closed()
-            await app.shutdown()
-            await handler.shutdown(60.0)
-
-        finally:
-            await app.cleanup()
-
-    loop.run_until_complete(teardown_server())
+    loop.run_until_complete(runner.cleanup())
 
 
 @pytest.yield_fixture
 def rpc_context(event_loop, unused_tcp_port):
     rpc = JsonRpc(loop=event_loop, max_workers=4)
-    rpc_route = ('*', '/rpc', rpc)
+    rpc_route = ('*', '/rpc', rpc.handle_request)
 
     for context in gen_rpc_context(event_loop, 'localhost', unused_tcp_port,
                                    rpc, rpc_route):
@@ -116,7 +107,7 @@ def django_rpc_context(db, event_loop, unused_tcp_port):
                   auth_backend=DjangoAuthBackend(generic_orm_methods=True),
                   max_workers=4)
 
-    rpc_route = ('*', '/rpc', rpc)
+    rpc_route = ('*', '/rpc', rpc.handle_request)
 
     routes = [
         ('*', '/{path_info:.*}', WSGIHandler(django_wsgi_application)),
