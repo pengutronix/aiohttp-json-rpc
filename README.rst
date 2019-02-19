@@ -119,10 +119,10 @@ There's also Python client, which can be used as follows:
 
 
   async def ping_json_rpc():
-      """Connect to ws://localhost:8080/rpc, call ping() and disconnect."""
+      """Connect to ws://localhost:8080/, call ping() and disconnect."""
       rpc_client = JsonRpcClient()
       try:
-          await rpc_client.connect('localhost', 8080, '/rpc')
+          await rpc_client.connect('localhost', 8080)
           call_result = await rpc_client.call('ping')
           print(call_result)  # prints 'pong' (if that's return val of ping)
       finally:
