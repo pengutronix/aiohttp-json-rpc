@@ -7,6 +7,9 @@ async def test_args(rpc_context):
     async def method1(request, a):
         return a
 
+    async def method1_1(request, a, b):
+        return [a, b]
+
     async def method2(request, a, b, c=1):
         return [a, b, c]
 
@@ -44,6 +47,7 @@ async def test_args(rpc_context):
     # setup rpc and client
     rpc_context.rpc.add_methods(
         ('', method1),
+        ('', method1_1),
         ('', method2),
         ('', method3),
         ('', method4),
@@ -54,6 +58,7 @@ async def test_args(rpc_context):
 
     # simple coroutine based methods
     assert await client.call('method1', 1) == 1
+    assert await client.call('method1_1', [1, 2]) == [1, 2]
 
     assert await client.call('method2', [1, 2]) == [1, 2, 1]
     assert await client.call('method2', [1, 2, 3]) == [1, 2, 3]

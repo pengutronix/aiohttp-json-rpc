@@ -51,7 +51,7 @@ class JsonRpcMethod:
         # required args
         self.required_args = copy(self.args)
 
-        if not (len(self.args) == 1 and self.defaults is None):
+        if self.defaults:
             self.required_args = [
                 i for i in self.args[:-len(self.defaults or ())]
                 if i not in self.CREDENTIAL_KEYS
