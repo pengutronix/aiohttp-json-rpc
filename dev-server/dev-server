@@ -52,7 +52,7 @@ app.router.add_get('/', index)
 
 runner = web.AppRunner(app)
 loop.run_until_complete(runner.setup())
-site = web.TCPSite(runner, 'localhost', 8080)
+site = web.TCPSite(runner, HOST, PORT)
 loop.run_until_complete(site.start())
 
 loop.run_until_complete(setup_client(client))
