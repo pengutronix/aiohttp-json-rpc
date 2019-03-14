@@ -74,7 +74,7 @@ async def test_state(rpc_context):
 
     # setup rpc
     rpc_context.rpc.add_topics('topic')
-    await rpc_context.rpc.notify('topic', 'foo')
+    await rpc_context.rpc.notify('topic', 'foo', state=True)
 
     # setup client
     message = asyncio.Future()

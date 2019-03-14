@@ -419,12 +419,15 @@ class JsonRpc(object):
             if len(topics & client.subscriptions) > 0:
                 yield client
 
-    async def notify(self, topic, data=None):
+    async def notify(self, topic, data=None, state=False):
         if type(topic) is not str:
             raise ValueError
 
-        self.state[topic] = data
+        if state:
+            self.state[topic] = data
+
         notification = None
+
         for client in self.filter(topic):
             try:
                 if notification is None:
