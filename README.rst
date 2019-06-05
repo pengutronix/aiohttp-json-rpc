@@ -1,8 +1,8 @@
 .. image:: https://img.shields.io/pypi/v/aiohttp-json-rpc.svg
    :target: https://pypi.org/project/aiohttp-json-rpc
 
-.. image:: https://img.shields.io/travis/pengutronix/aiohttp-json-rpc/master.svg?label=Linux%20build%20%40%20Travis%20CI
-   :target: http://travis-ci.org/pengutronix/aiohttp-json-rpc
+.. image:: https://img.shields.io/travis/com/pengutronix/aiohttp-json-rpc/master.svg?label=Linux%20build%20%40%20Travis%20CI
+   :target: http://travis-ci.com/pengutronix/aiohttp-json-rpc
 
 .. image:: https://img.shields.io/pypi/pyversions/aiohttp-json-rpc.svg
 
