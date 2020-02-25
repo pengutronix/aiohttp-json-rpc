@@ -260,6 +260,65 @@ For details see the corresponding Django documentation.
       )
 
 
+Using SSL Connections
+~~~~~~~~~~~~~~~~~~~~~
+If you need to setup a secure RPC server (use own certification files for example) you can create a ssl.SSLContext instance and pass it into the aiohttp web application. 
+
+The following code implements a simple secure RPC server that serves the method ``ping`` on ``localhost:8080``
+
+.. code-block:: python
+
+  from aiohttp.web import Application, run_app
+  from aiohttp_json_rpc import JsonRpc
+  import asyncio
+  import ssl
+
+
+  async def ping(request):
+      return 'pong'
+
+
+  if __name__ == '__main__':
+      loop = asyncio.get_event_loop()
+
+      rpc = JsonRpc()
+      rpc.add_methods(
+          ('', ping),
+      )
+      
+      app = Application(loop=loop)
+      app.router.add_route('*', '/', rpc.handle_request)
+      
+      ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+      ssl_context.load_cert_chain('path/to/server.crt', 'path/to/server.key')
+
+      run_app(app, host='0.0.0.0', port=8080, ssl_context=ssl_context)
+
+The following code implements a secure RPC client using the ``JsonRpcClient`` Python client.
+
+.. code-block:: python
+
+  from aiohttp_json_rpc import JsonRpcClient
+  import ssl
+
+  async def ping_json_rpc():
+      """Connect to wss://localhost:8080/, call ping() and disconnect."""
+      rpc_client = JsonRpcClient()
+      ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+      ssl_context.load_cert_chain('path/to/server.crt','path/to/server.key')
+      try:
+          await rpc_client.connect('localhost', 8080, ssl=ssl_context)
+          call_result = await rpc_client.call('ping')
+          print(call_result)  # prints 'pong' (if that's return val of ping)
+      finally:
+          await rpc_client.disconnect()
+
+
+  asyncio.get_event_loop().run_until_complete(ping_json_rpc())
+
+See `aiohttp documentation <https://docs.aiohttp.org/en/stable/client_advanced.html#ssl-control-for-tcp-sockets>`_ for more details on SSL control for TCP sockets.
+
+
 Class References
 ----------------
 

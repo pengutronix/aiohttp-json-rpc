@@ -115,14 +115,14 @@ class JsonRpcClient:
 
         self._logger.debug('#%s: worker stopped', self._id)
 
-    async def connect_url(self, url, cookies=None):
+    async def connect_url(self, url, cookies=None, ssl=None):
         url = URL(url)
         self._session = aiohttp.ClientSession(cookies=cookies, loop=self._loop)
 
         self._logger.debug('#%s: ws connect...', self._id)
         self._ws = None
         try:
-            self._ws = await self._session.ws_connect(url)
+            self._ws = await self._session.ws_connect(url, ssl=ssl)
         finally:
             if self._ws is None:
                 # Ensure session is closed when connection failed
@@ -131,9 +131,12 @@ class JsonRpcClient:
 
         self._message_worker = asyncio.ensure_future(self._handle_msgs())
 
-    async def connect(self, host, port, url='/', protocol='ws', cookies=None):
+    async def connect(self, host, port, url='/', protocol='ws', cookies=None,
+                      ssl=None):
+        if ssl is not None and protocol == 'ws':
+            protocol = 'wss'
         url = URL.build(scheme=protocol, host=host, port=port, path=url)
-        await self.connect_url(url, cookies=cookies)
+        await self.connect_url(url, cookies=cookies, ssl=ssl)
 
     async def auto_connect(self):
         if self._autoconnect_url is None:
