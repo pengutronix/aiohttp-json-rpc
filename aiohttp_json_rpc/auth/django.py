@@ -8,6 +8,7 @@ from django.conf import settings
 from django.http import HttpRequest
 from django.apps import apps
 
+from ..django.utils.query import parse_operations
 from .. import RpcInvalidParamsError
 from ..rpc import JsonRpcMethod
 from . import AuthBackend
@@ -66,13 +67,20 @@ class DjangoAuthBackend(AuthBackend):
         return d
 
     async def _model_view(self, request, model):
-        lookups = request.msg.data['params'] or {}
+        raw_operations = request.msg.data['params'] or []
 
-        if not isinstance(lookups, dict):
+        if not isinstance(raw_operations, list):
             raise RpcInvalidParamsError
 
         try:
-            objects = model.objects.filter(**lookups)
+            objects = model.objects.all()
+
+            for operation, lookup in parse_operations(raw_operations):
+                if operation == 'filter':
+                    objects = objects.filter(lookup)
+
+                elif operation == 'exclude':
+                    objects = objects.exclude(lookup)
 
             return [self.dump_model_object(i) for i in objects]
 
