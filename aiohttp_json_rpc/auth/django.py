@@ -175,12 +175,12 @@ class DjangoAuthBackend(AuthBackend):
         )
 
         # rediscover methods and topics
-        self.prepare_request(request.http_request, user=user)
+        await self.prepare_request(request.http_request, user=user)
 
         return True
 
     # request processing
-    def prepare_request(self, request, user=None):
+    async def prepare_request(self, request, user=None):
         request.user = user or self.get_user(request)
         request.methods = {}
 
