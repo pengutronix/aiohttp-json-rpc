@@ -59,7 +59,7 @@ class JsonRpcRequest:
         self.http_request.msg_id += 1
         self.http_request.pending[msg_id] = asyncio.Future()
 
-        request = encode_request(method, id=msg_id, params=params)
+        request = encode_request(method, msg_id=msg_id, params=params)
 
         await self.http_request.ws.send_str(request)
 

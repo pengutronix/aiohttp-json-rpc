@@ -131,7 +131,7 @@ def decode_msg(raw_msg):
     return JsonRpcMsg(msg_type, msg_data)
 
 
-def encode_request(method, id=None, params=None):
+def encode_request(method, msg_id=None, params=None):
     if type(method) is not str:
         raise ValueError('method has to be a string')
 
@@ -140,8 +140,8 @@ def encode_request(method, id=None, params=None):
         'method': method,
     }
 
-    if id is not None:
-        msg['id'] = id
+    if msg_id is not None:
+        msg['id'] = msg_id
 
     if params is not None:
         msg['params'] = params
@@ -150,7 +150,7 @@ def encode_request(method, id=None, params=None):
 
 
 def encode_notification(method, params=None):
-    return encode_request(method, id=None, params=params)
+    return encode_request(method, msg_id=None, params=params)
 
 
 def encode_result(id, result):
@@ -163,7 +163,7 @@ def encode_result(id, result):
     return json.dumps(msg)
 
 
-def encode_error(error, id=None):
+def encode_error(error, msg_id=None):
     if not isinstance(error, RpcError):
         raise ValueError
 
@@ -175,8 +175,8 @@ def encode_error(error, id=None):
         }
     }
 
-    if id is not None:
-        msg['id'] = id
+    if msg_id is not None:
+        msg['id'] = msg_id
 
     elif error.msg_id is not None:
         msg['id'] = error.msg_id

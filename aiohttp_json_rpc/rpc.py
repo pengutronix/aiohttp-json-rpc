@@ -337,7 +337,7 @@ class JsonRpc(object):
 
                 await self._ws_send_str(
                     http_request,
-                    encode_error(error, id=msg.data.get('id', None))
+                    encode_error(error, msg_id=msg.data.get('id', None))
                 )
 
             except Exception as error:

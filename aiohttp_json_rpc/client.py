@@ -157,27 +157,27 @@ class JsonRpcClient:
         del self._ws
         del self._session
 
-    async def call(self, method, params=None, id=None, timeout=1):
+    async def call(self, method, params=None, msg_id=None, timeout=1):
         await self.auto_connect()
 
-        if not id:
-            id = self._msg_id
+        if not msg_id:
+            msg_id = self._msg_id
             self._msg_id += 1
 
-        self._pending[id] = asyncio.Future()
-        msg = encode_request(method, id=id, params=params)
+        self._pending[msg_id] = asyncio.Future()
+        msg = encode_request(method, msg_id=msg_id, params=params)
 
         self._logger.debug('#%s: > %s', self._id, msg)
         await self._ws.send_str(msg)
 
         if timeout:
-            await asyncio.wait_for(self._pending[id], timeout=timeout)
+            await asyncio.wait_for(self._pending[msg_id], timeout=timeout)
 
         else:
-            await self._pending[id]
+            await self._pending[msg_id]
 
-        result = self._pending[id].result()
-        del self._pending[id]
+        result = self._pending[msg_id].result()
+        del self._pending[msg_id]
 
         return result
 
@@ -331,7 +331,7 @@ class RawJsonRpcMethod(JsonRpcMethod):
     def _await_kwargs(self):
         return self._kwargs
 
-    def __call__(self, params=None, id=None, timeout=None):
+    def __call__(self, params=None, msg_id=None, timeout=None):
         return self.__class__(
             self._rpc_client, self._rpc_method,
             kwargs={
