@@ -193,13 +193,15 @@ class JsonRpcClient:
     async def subscribe(self, topic, handler, timeout=None):
         self._handler[topic] = handler
 
-        return await self.call('subscribe', params=topic, timeout=timeout)
+        return await self.call('subscribe', params={'args': [topic]},
+                               timeout=timeout)
 
     async def unsubscribe(self, topic, timeout=None):
         if topic in self._handler:
             del self._handler[topic]
 
-        return await self.call('unsubscribe', params=topic, timeout=timeout)
+        return await self.call('unsubscribe', params={'args': [topic]},
+                               timeout=timeout)
 
 
 class JsonRpcMethod:

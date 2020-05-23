@@ -92,18 +92,13 @@ class JsonRpcMethod:
         params = msg.data['params']
         method_params = dict()
 
-        # convert args
         if params is None:
             params = {}
 
-        if type(params) not in (dict, list):
-            params = [params]
+        params.setdefault('args', [])
+        params.setdefault('kwargs', {})
 
-        if type(params) == list:
-            params = {self.args[i]: v for i, v in enumerate(params)
-                      if i < len(self.args)}
-
-        # required args
+        # add args
         i = 0
         for arg in self.args:
             if arg in self.CREDENTIAL_KEYS:
@@ -114,15 +109,18 @@ class JsonRpcMethod:
             elif len(params['args']) > i:
                 method_params[arg] = params['args'][i]
                 i += 1
-            elif arg in self.required_kwargs:
+            elif arg in self.required_args:
                 raise RpcInvalidParamsError(message='to few arguments')
 
-        # required kwargs
-        for arg in self.required_kwargs:
-            if arg not in params['kwargs']:
-                raise RpcInvalidParamsError(message='to few named arguments')
+        # add kwargs
+        for kwarg in self.kwargs:
+            if kwarg in self.CREDENTIAL_KEYS:
+                continue
 
-            method_params[arg] = params['kwargs'][arg]
+            if kwarg in params['kwargs']:
+                method_params[kwarg] = params['kwargs'][kwarg]
+            elif kwarg in self.required_kwargs:
+                raise RpcInvalidParamsError(message='to few named arguments')
 
         # validators
         if hasattr(self.method, 'validators'):
@@ -394,10 +392,10 @@ class JsonRpc(object):
         return list(request.subscriptions)
 
     async def subscribe(self, request):
-        if type(request.params) is not list:
-            request.params = [request.params]
+        if not request.params or 'args' not in request.params:
+            return list(request.subscriptions)
 
-        for topic in request.params:
+        for topic in request.params['args']:
             if topic and topic in request.topics:
                 request.subscriptions.add(topic)
 
@@ -407,10 +405,10 @@ class JsonRpc(object):
         return list(request.subscriptions)
 
     async def unsubscribe(self, request):
-        if type(request.params) is not list:
-            request.params = [request.params]
+        if not request.params or 'args' not in request.params:
+            return list(request.subscriptions)
 
-        for topic in request.params:
+        for topic in request.params['args']:
             if topic and topic in request.subscriptions:
                 request.subscriptions.remove(topic)
 
