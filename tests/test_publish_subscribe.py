@@ -59,13 +59,13 @@ async def test_notify(rpc_context):
     await client.subscribe('topic', handler)
 
     # run test
-    await rpc_context.rpc.notify('topic', 'foo')
+    await rpc_context.rpc.notify('topic', {'args': ['foo']})
     await asyncio.wait_for(message, 1)
 
     result = message.result()
 
     assert result['method'] == 'topic'
-    assert result['params'] == 'foo'
+    assert result['params'] == {'args': ['foo']}
 
 
 @pytest.mark.asyncio
@@ -74,7 +74,7 @@ async def test_state(rpc_context):
 
     # setup rpc
     rpc_context.rpc.add_topics('topic')
-    await rpc_context.rpc.notify('topic', 'foo', state=True)
+    await rpc_context.rpc.notify('topic', {'args': ['foo']}, state=True)
 
     # setup client
     message = asyncio.Future()
@@ -93,7 +93,7 @@ async def test_state(rpc_context):
     result = message.result()
 
     assert result['method'] == 'topic'
-    assert result['params'] == 'foo'
+    assert result['params'] == {'args': ['foo']}
 
 
 @pytest.mark.asyncio
@@ -104,7 +104,7 @@ async def test_notify_on_request(rpc_context, event_loop):
     rpc_context.rpc.add_topics('topic')
 
     async def method(request):
-        await request.send_notification('topic', 'foo')
+        await request.send_notification('topic', {'args': ['foo']})
 
         return True
 
@@ -130,4 +130,4 @@ async def test_notify_on_request(rpc_context, event_loop):
     result = message.result()
 
     assert result['method'] == 'topic'
-    assert result['params'] == 'foo'
+    assert result['params'] == {'args': ['foo']}

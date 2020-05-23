@@ -57,37 +57,39 @@ async def test_args(rpc_context):
     client = await rpc_context.make_client()
 
     # simple coroutine based methods
-    assert await client.call('method1', 1) == 1
-    assert await client.call('method1_1', [1, 2]) == [1, 2]
+    assert await client.call('method1', {'args': [1]}) == 1
+    assert await client.call('method1_1', {'args': [1, 2]}) == [1, 2]
 
-    assert await client.call('method2', [1, 2]) == [1, 2, 1]
-    assert await client.call('method2', [1, 2, 3]) == [1, 2, 3]
-    assert await client.call('method2', {'a': 1, 'b': 2, 'c': 3}) == [1, 2, 3]
+    assert await client.call('method2', {'args': [1, 2]}) == [1, 2, 1]
+    assert await client.call('method2', {'args': [1, 2, 3]}) == [1, 2, 3]
+    assert await client.call('method2',
+                             {'kwargs': {'a': 1, 'b': 2, 'c': 3}}) == [1, 2, 3]
 
-    assert await client.call('method3', [1, 2]) == [1, 2, 1]
-    assert await client.call('method3', [1, 2, 3]) == [1, 2, 3]
-    assert await client.call('method3', {'a': 1, 'b': 2, 'c': 3}) == [1, 2, 3]
+    assert await client.call('method3', {'args': [1, 2]}) == [1, 2, 1]
+    assert await client.call('method3', {'args': [1, 2, 3]}) == [1, 2, 3]
+    assert await client.call('method3',
+                             {'kwargs': {'a': 1, 'b': 2, 'c': 3}}) == [1, 2, 3]
 
     assert await client.call('method4') == [1, 2, 3]
-    assert await client.call('method4', [5, 5, 5]) == [1, 2, 3]
+    assert await client.call('method4', {'args': [5, 5, 5]}) == [1, 2, 3]
 
     # class based methods
-    assert await client.call('cls__method1', 1) == 1
+    assert await client.call('cls__method1', {'args': [1]}) == 1
 
-    assert await client.call('cls__method2', [1, 2]) == [1, 2, 1]
-    assert await client.call('cls__method2', [1, 2, 3]) == [1, 2, 3]
+    assert await client.call('cls__method2', {'args': [1, 2]}) == [1, 2, 1]
+    assert await client.call('cls__method2', {'args': [1, 2, 3]}) == [1, 2, 3]
 
     assert await client.call('cls__method2',
-                             {'a': 1, 'b': 2, 'c': 3}) == [1, 2, 3]
+                             {'kwargs': {'a': 1, 'b': 2, 'c': 3}}) == [1, 2, 3]
 
-    assert await client.call('cls__method3', [1, 2]) == [1, 2, 1]
-    assert await client.call('cls__method3', [1, 2, 3]) == [1, 2, 3]
+    assert await client.call('cls__method3', {'args': [1, 2]}) == [1, 2, 1]
+    assert await client.call('cls__method3', {'args': [1, 2, 3]}) == [1, 2, 3]
 
     assert await client.call('cls__method3',
-                             {'a': 1, 'b': 2, 'c': 3}) == [1, 2, 3]
+                             {'kwargs': {'a': 1, 'b': 2, 'c': 3}}) == [1, 2, 3]
 
     assert await client.call('cls__method4') == [1, 2, 3]
-    assert await client.call('cls__method4', [5, 5, 5]) == [1, 2, 3]
+    assert await client.call('cls__method4', {'args': [5, 5, 5]}) == [1, 2, 3]
 
 
 @pytest.mark.asyncio
@@ -116,12 +118,12 @@ async def test_to_few_arguments(rpc_context):
 
     # method2
     with pytest.raises(RpcInvalidParamsError) as exc_info:
-        await client.call('method2', 1)
+        await client.call('method2', {'args': [1]})
 
     assert exc_info.value.message == 'to few arguments'
 
     with pytest.raises(RpcInvalidParamsError) as exc_info:
-        await client.call('method2', {'a': 1, 'c': 1})
+        await client.call('method2', {'kwargs': {'a': 1, 'c': 1}})
 
     assert exc_info.value.message == 'to few arguments'
 
@@ -140,10 +142,10 @@ async def test_type_validators(rpc_context):
 
     client = await rpc_context.make_client()
 
-    await client.call('method', 1)
+    await client.call('method', {'args': [1]})
 
     with pytest.raises(RpcInvalidParamsError):
-        await client.call('method', '1')
+        await client.call('method', {'args': ['1']})
 
 
 @pytest.mark.asyncio
@@ -160,10 +162,10 @@ async def test_function_validators(rpc_context):
 
     client = await rpc_context.make_client()
 
-    await client.call('method', 1)
+    await client.call('method', {'args': [1]})
 
     with pytest.raises(RpcInvalidParamsError):
-        await client.call('method', '1')
+        await client.call('method', {'args': ['1']})
 
 
 @pytest.mark.asyncio

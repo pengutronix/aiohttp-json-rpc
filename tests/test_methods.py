@@ -71,7 +71,7 @@ async def test_add_methods_diff_prefixes(rpc_context):
 @pytest.mark.asyncio
 async def test_call_method(rpc_context):
     async def add(request):
-        return request.params[0] + request.params[1]
+        return request.params['args'][0] + request.params['args'][1]
 
     rpc_context.rpc.add_methods(
         ('', add),
@@ -79,7 +79,7 @@ async def test_call_method(rpc_context):
 
     client = await rpc_context.make_client()
 
-    assert await client.call('add', [1, 2]) == 3
+    assert await client.call('add', {'args': [1, 2]}) == 3
 
 
 @pytest.mark.asyncio
