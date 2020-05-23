@@ -29,7 +29,7 @@ from .exceptions import (
 
 
 class JsonRpcMethod:
-    CREDENTIAL_KEYS = ['request', 'worker_pool']
+    CREDENTIAL_KEYS = {'request', 'worker_pool'}
 
     def __init__(self, method):
         self.method = method
@@ -38,31 +38,32 @@ class JsonRpcMethod:
         try:
             self.argspec = inspect.getfullargspec(method)
             self.introspected = True
-
         except TypeError:  # unsupported callable
             self.argspec = inspect.getfullargspec(lambda request: None)
             self.introspected = False
 
         self.defaults = copy(self.argspec.defaults)
+        self.kwonlydefaults = copy(self.argspec.kwonlydefaults)
 
-        self.args = [i for i in self.argspec.args
-                     if i not in self.CREDENTIAL_KEYS + ['self']]
+        self.args = [i for i in self.argspec.args if i != 'self']
+        self.kwargs = copy(self.argspec.kwonlyargs)
 
         # required args
-        self.required_args = copy(self.args)
-
         if self.defaults:
             self.required_args = [
-                i for i in self.args[:-len(self.defaults or ())]
-                if i not in self.CREDENTIAL_KEYS
+                i for i in self.args[:-len(self.defaults)]
+                if i != 'self'
             ]
+        else:
+            self.required_args = self.args
 
-        # optional args
-        self.optional_args = [
-            i for i in (self.args[len(self.args or []) -
-                        len(self.defaults or ()):])
-            if i not in self.CREDENTIAL_KEYS + ['self']
-        ]
+        # required kwargs
+        if self.kwonlydefaults:
+            self.required_kwargs = [
+                i for i in self.args[:-len(self.kwonlydefaults)]
+            ]
+        else:
+            self.required_kwargs = self.kwargs
 
         # gen repr string
         args = []
@@ -75,8 +76,8 @@ class JsonRpcMethod:
                 args.append(v)
 
         args = [
-            *[i for i in self.CREDENTIAL_KEYS if i in self.argspec.args],
-            *args[::-1],
+            *self.args,
+            *self.kwargs
         ]
 
         self._repr_str = 'JsonRpcMethod({}({}))'.format(
@@ -103,15 +104,25 @@ class JsonRpcMethod:
                       if i < len(self.args)}
 
         # required args
-        for i in self.required_args:
-            if i not in params:
+        i = 0
+        for arg in self.args:
+            if arg in self.CREDENTIAL_KEYS:
+                continue
+
+            if arg in params['kwargs']:
+                method_params[arg] = params['kwargs'][arg]
+            elif len(params['args']) > i:
+                method_params[arg] = params['args'][i]
+                i += 1
+            elif arg in self.required_kwargs:
                 raise RpcInvalidParamsError(message='to few arguments')
 
-            method_params[i] = params[i]
+        # required kwargs
+        for arg in self.required_kwargs:
+            if arg not in params['kwargs']:
+                raise RpcInvalidParamsError(message='to few named arguments')
 
-        # optional args
-        for i, v in enumerate(self.optional_args):
-            method_params[v] = params.get(v, self.defaults[i])
+            method_params[arg] = params['kwargs'][arg]
 
         # validators
         if hasattr(self.method, 'validators'):
@@ -129,7 +140,7 @@ class JsonRpcMethod:
                             raise RpcInvalidParamsError(message="'{}': validation error".format(arg_name))  # NOQA
 
         # credentials
-        if 'request' in self.argspec.args:
+        if 'request' in self.argspec.args or 'request' in self.argspec.kwonlyargs:
             if asyncio.iscoroutinefunction(self.method):
                 method_params['request'] = JsonRpcRequest(
                     rpc=rpc, http_request=http_request, msg=msg)
@@ -138,13 +149,12 @@ class JsonRpcMethod:
                 method_params['request'] = SyncJsonRpcRequest(
                     rpc=rpc, http_request=http_request, msg=msg)
 
-        if 'worker_pool' in self.argspec.args:
+        if 'worker_pool' in self.argspec.args or 'worker_pool' in self.argspec.kwonlyargs:
             method_params['worker_pool'] = rpc.worker_pool
 
         # run method
         if asyncio.iscoroutinefunction(self.method):
             return await self.method(**method_params)
-
         else:
             return await rpc.worker_pool.run(self.method, **method_params)
 
