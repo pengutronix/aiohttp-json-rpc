@@ -331,7 +331,7 @@ class JsonRpc(object):
                 )
 
             except Exception as error:
-                logging.error(error, exc_info=True)
+                self.logger.error(error, exc_info=True)
 
                 await self._ws_send_str(http_request, encode_error(
                     RpcInternalError(msg_id=msg.data.get('id', None))
