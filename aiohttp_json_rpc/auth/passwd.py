@@ -126,7 +126,7 @@ class PasswdAuthBackend:
 
         return True
 
-    def prepare_request(self, request):
+    async def prepare_request(self, request):
         if not hasattr(request, 'user'):
             request.user = None
 
@@ -175,7 +175,7 @@ class PasswdAuthBackend:
             await loop.run_in_executor(None, self._login, username, password))
 
         # rediscover methods
-        self.prepare_request(request.http_request)
+        await self.prepare_request(request.http_request)
 
         return bool(request.http_request.user)
 
@@ -184,7 +184,7 @@ class PasswdAuthBackend:
         request.http_request.user = None
         request.http_request.permissions = set()
 
-        self.prepare_request(request.http_request)
+        await self.prepare_request(request.http_request)
 
         return True
 
