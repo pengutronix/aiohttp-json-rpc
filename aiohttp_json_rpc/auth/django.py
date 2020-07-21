@@ -180,8 +180,15 @@ class DjangoAuthBackend(AuthBackend):
         return True
 
     # request processing
-    def prepare_request(self, request, user=None):
-        request.user = user or self.get_user(request)
+    async def prepare_request(self, request, user=None):
+        if not user:
+            user = await request.rpc.loop.run_in_executor(
+                request.rpc.worker_pool.executor,
+                self.get_user,
+                request,
+            )
+
+        request.user = user
         request.methods = {}
 
         # django auth methods
