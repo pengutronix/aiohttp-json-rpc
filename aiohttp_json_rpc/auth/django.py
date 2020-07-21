@@ -175,7 +175,7 @@ class DjangoAuthBackend(AuthBackend):
         )
 
         # rediscover methods and topics
-        self.prepare_request(request.http_request, user=user)
+        await self.prepare_request(request.http_request, user=user)
 
         return True
 
