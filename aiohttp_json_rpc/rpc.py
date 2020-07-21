@@ -253,7 +253,10 @@ class JsonRpc(object):
     async def handle_request(self, request):
         # prepare request
         request.rpc = self
-        self.auth_backend.prepare_request(request)
+        coroutine = self.auth_backend.prepare_request(request)
+
+        if asyncio.iscoroutine(coroutine):
+            await coroutine
 
         # handle request
         if request.method == 'GET':
