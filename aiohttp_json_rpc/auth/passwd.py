@@ -3,6 +3,7 @@ import asyncio
 import hashlib
 import os
 
+from aiohttp_json_rpc.rpc import JsonRpcMethod
 from .. import RpcInvalidParamsError
 from . import login_required
 
@@ -116,6 +117,8 @@ class PasswdAuthBackend:
         return None, set()
 
     def _is_authorized(self, request, method):
+        method = method.method
+
         if hasattr(method, 'login_required') and not request.user:
             return False
 
@@ -137,11 +140,11 @@ class PasswdAuthBackend:
         request.methods = {}
 
         method_pool = dict(
-            login=self.login,
-            logout=self.logout,
-            create_user=self.create_user,
-            delete_user=self.delete_user,
-            set_password=self.set_password,
+            login=JsonRpcMethod(self.login),
+            logout=JsonRpcMethod(self.logout),
+            create_user=JsonRpcMethod(self.create_user),
+            delete_user=JsonRpcMethod(self.delete_user),
+            set_password=JsonRpcMethod(self.set_password),
             **request.rpc.methods
         )
 
