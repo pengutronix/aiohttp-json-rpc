@@ -100,6 +100,8 @@ class PasswdAuthBackend:
         self.user[username]['salt'] = salt
         self.user[username]['rounds'] = rounds
 
+        self.write()
+
         return True
 
     def _login(self, username, password):
