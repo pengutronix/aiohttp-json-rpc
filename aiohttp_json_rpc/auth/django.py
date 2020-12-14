@@ -39,9 +39,19 @@ class DjangoAuthBackend(AuthBackend):
         return AnonymousUser()
 
     def _is_authorized(self, request, method):
+        def _user_is_authenticated(user):
+            # between django 1.x and 2.x User.is_authenticated was changed
+            # from an method to a boolean
+            # this function adds support for both APIs
+
+            if callable(user.is_authenticated):
+                return user.is_authenticated()
+
+            return user.is_authenticated
+
         if hasattr(method, 'login_required') and (
            not request.user.is_active or
-           not request.user.is_authenticated()):
+           not _user_is_authenticated(request.user)):
             return False
 
         # permission check
