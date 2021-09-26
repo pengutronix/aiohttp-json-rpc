@@ -213,7 +213,7 @@ class DjangoAuthBackend(AuthBackend):
 
                 if action in ('view', 'add', 'change', 'delete', ):
                     request.methods[method_name] = JsonRpcMethod(
-                        self.handle_orm_call)
+                        self.handle_orm_call, method_name)
 
         # rpc defined methods
         for name, method in request.rpc.methods.items():
