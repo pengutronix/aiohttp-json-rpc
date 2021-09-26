@@ -101,3 +101,19 @@ async def test_method_names(rpc_context, caplog):
 
     assert await client.call('method1') == 'method1'
     assert await client.call('method2') == 'method2'
+
+    assert 'method1' in repr(rpc_context.rpc.methods['method1'])
+
+
+@pytest.mark.asyncio
+async def test_partial_method(rpc_context, caplog):
+    from functools import partial
+
+    async def pong(request, msg):
+        return msg
+
+    rpc_context.rpc.add_methods(
+        ('', partial(pong, msg="pong"), "pong"),
+    )
+
+    assert 'pong' in repr(rpc_context.rpc.methods['pong'])

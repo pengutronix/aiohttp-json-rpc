@@ -31,8 +31,9 @@ from .exceptions import (
 class JsonRpcMethod:
     CREDENTIAL_KEYS = ['request', 'worker_pool']
 
-    def __init__(self, method):
+    def __init__(self, method, name=None):
         self.method = method
+        self.name = name
 
         # method introspection
         try:
@@ -80,7 +81,7 @@ class JsonRpcMethod:
         ]
 
         self._repr_str = 'JsonRpcMethod({}({}))'.format(
-            self.method.__name__,
+            name or self.method.__name__,
             ', '.join(args),
         )
 
@@ -179,7 +180,7 @@ class JsonRpc(object):
         if prefix:
             name = '{}__{}'.format(prefix, name)
 
-        self.methods[name] = JsonRpcMethod(method)
+        self.methods[name] = JsonRpcMethod(method, name)
 
     def _add_methods_from_object(self, obj, prefix='', ignore=[]):
         for attr_name in dir(obj):
